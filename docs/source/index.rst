@@ -3,13 +3,19 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Non-Consistent DFT Hessian's documentation!
-======================================================
+欢迎来到非自洽 DFT 二阶梯度的文档！
+===================================
+
+在这份文档中，我会简单叙述非自洽 DFT 二阶梯度的推导与程序实现过程，以及这其中所需要的一些程序能力．这份文档假设已经具有对梯度公式的理解能力，但对 Python 以及 PySCF 的了解还处于起步阶段的工作者．
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
-
+   :caption: 目录
+   :numbered:
+   
+   build_environment
+   python_intro
+   basic_scf
 
 
 Indices and tables

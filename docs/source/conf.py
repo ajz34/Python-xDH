@@ -20,7 +20,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Non-Consistent DFT Hessian'
-copyright = '2019, ajz34'
+copyright = '2019-, ajz34 <ajz34@outlook.com>'
 author = 'ajz34'
 
 # The short X.Y version
@@ -39,8 +39,10 @@ release = ''
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'nbsphinx',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinxcontrib.bibtex',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -106,7 +108,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Non-ConsistentDFTHessiandoc'
+htmlhelp_basename = 'NCDFTdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
