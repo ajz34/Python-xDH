@@ -16,6 +16,9 @@
    build_environment
    python_intro
    basic_scf
+   basic_mp2
+   basic_gga
+   grad_rhf
 
 
 Indices and tables

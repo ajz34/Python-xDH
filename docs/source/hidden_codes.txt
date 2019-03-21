@@ -1,0 +1,126 @@
+cell metadata:
+{
+  "nbsphinx": "hidden",
+  "hide_input": true
+}
+
+
+mol = gto.Mole()
+mol.atom = """
+O  0.0  0.0  0.0
+O  0.0  0.0  1.5
+H  1.5  0.0  0.0
+H  0.0  0.7  1.5
+"""
+mol.basis = "6-31G"
+mol.verbose = 0
+mol.build()
+print("---> Hidden Block Info: Object `mol` built")
+print("     For original code, refer to `basic_scf.ipynb#PySCF-自洽场计算`")
+
+
+scf_eng = scf.RHF(mol)
+scf_eng.conv_tol = 1e-12
+scf_eng.conv_tol_grad = 1e-10
+scf_eng.kernel()
+print("---> Hidden Block Info: Object `scf_eng` for RHF built")
+print("     For original code, refer to `basic_scf.ipynb#PySCF-自洽场计算`")
+
+
+nmo = nao = mol.nao
+natm = mol.natm
+nocc = mol.nelec[0]
+nvir = nmo - nocc
+so = slice(0, nocc)
+sv = slice(nocc, nmo)
+sa = slice(0, nmo)
+print("---> Hidden Block Info: Molecular related variables built <--")
+print("     For original code, refer to `basic_mp2.ipynb#分子相关量定义`")
+
+
+C       = scf_eng.mo_coeff
+e       = scf_eng.mo_energy
+Co      = C[:, so]
+Cv      = C[:, sv]
+eo      = e[so]
+ev      = e[sv]
+D       = 2 * Co @ Co.T
+F_0_ao  = scf_eng.get_fock()
+F_0_mo  = C @ F_0_ao @ C.T
+H_0_ao  = scf_eng.get_hcore()
+H_0_mo  = C @ H_0_ao @ C.T
+eri0_ao = mol.intor("int2e")
+eri0_mo = np.einsum("uvkl, up, vq, kr, ls -> pqrs", eri0_ao, C, C, C, C)
+mo_occ  = scf_eng.mo_occ
+print("---> Hidden Block Info: SCF related tensors built")
+print("     For original code, refer to `basic_mp2.ipynb#自洽场计算相关量`")
+
+
+grids = dft.gen_grid.Grids(mol)
+grids.atom_grid = (99, 590)
+grids.becke_scheme = dft.gen_grid.stratmann
+grids.build()
+print("---> Hidden Block Info: DFT grids built")
+print("     For original code, refer to `basic_gga.ipynb#格点定义`")
+
+
+scf_eng = dft.RKS(mol)
+scf_eng.grids = grids
+scf_eng.xc = "b3lypg"
+scf_eng.conv_tol = 1e-12
+scf_eng.conv_tol_grad = 1e-10
+scf_eng.kernel()
+print("---> Hidden Block Info: Object `scf_eng` for B3LYP built")
+print("     For original code, refer to `basic_gga.ipynb#自洽场类定义`")
+
+
+ni = dft.numint.NumInt()
+ngrid = grids.weights.size
+grid_weight = grids.weights
+grid_ao = np.empty((20, ngrid, nao))  # 20 at first dimension is related to 3rd derivative of orbital
+current_grid_count = 0
+for ao, _, _, _ in ni.block_loop(mol, grids, nao, 3, 2000):
+    grid_ao[:, current_grid_count:current_grid_count+ao.shape[1]] = ao
+    current_grid_count += ao.shape[1]
+current_grid_count = None
+grid_ao_0  = grid_ao[0]
+grid_ao_1  = grid_ao[1:4]
+grid_ao_2T = grid_ao[4:10]
+XX, XY, XZ, YY, YZ, ZZ = range(4, 10)
+XXX, XXY, XXZ, XYY, XYZ, XZZ, YYY, YYZ, YZZ, ZZZ = range(10, 20)
+grid_ao_2 = np.array([
+    [grid_ao[XX], grid_ao[XY], grid_ao[XZ]],
+    [grid_ao[XY], grid_ao[YY], grid_ao[YZ]],
+    [grid_ao[XZ], grid_ao[YZ], grid_ao[ZZ]],
+])
+grid_ao_3T = np.array([
+    [grid_ao[XXX], grid_ao[XXY], grid_ao[XXZ], grid_ao[XYY], grid_ao[XYZ], grid_ao[XZZ]],
+    [grid_ao[XXY], grid_ao[XYY], grid_ao[XYZ], grid_ao[YYY], grid_ao[YYZ], grid_ao[YZZ]],
+    [grid_ao[XXZ], grid_ao[XYZ], grid_ao[XZZ], grid_ao[YYZ], grid_ao[YZZ], grid_ao[ZZZ]],
+])
+grid_rho_01 = np.einsum("uv, rgu, gv -> rg", D, grid_ao[0:4], grid_ao_0)
+grid_rho_01[1:] *= 2
+grid_rho_0 = grid_rho_01[0]
+grid_rho_1 = grid_rho_01[1:4]
+grid_rho_2 = (
+    + 2 * np.einsum("uv, rgu, wgv -> rwuv", D, grid_ao_1, grid_ao_1)
+    + 2 * np.einsum("uv, rwgu, gv -> rwuv", D, grid_ao_2, grid_ao_0)
+)
+[XX, XY, XZ, YY, YZ, ZZ] = [None] * 6
+[XXX, XXY, XXZ, XYY, XYZ, XZZ, YYY, YYZ, YZZ, ZZZ] = [None] * 10
+print("---> Hidden Block Info: DFT kernel insensitive grid built")
+print("     For original code, refer to `basic_gga.ipynb#泛函核无关部分`")
+
+
+cx = ni.hybrid_coeff(scf_eng.xc)
+grid_exc, grid_vxc, grid_fxc = ni.eval_xc(scf_eng.xc, grid_rho_01, deriv=2)[:3]
+grid_fr, grid_fg = grid_vxc[0:2]
+grid_frr, grid_frg, grid_fgg = grid_fxc[0:3]
+grid_exc *= grid_weight
+grid_fr  *= grid_weight
+grid_fg  *= grid_weight
+grid_frr *= grid_weight
+grid_frg *= grid_weight
+grid_fgg *= grid_weight
+print("---> Hidden Block Info: DFT kernel sensitive grid built")
+print("     For original code, refer to `basic_gga.ipynb#泛函核相关部分`")
