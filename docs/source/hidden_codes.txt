@@ -124,3 +124,86 @@ grid_frg *= grid_weight
 grid_fgg *= grid_weight
 print("---> Hidden Block Info: DFT kernel sensitive grid built")
 print("     For original code, refer to `basic_gga.ipynb#泛函核相关部分`")
+
+
+nc_eng = dft.RKS(mol)
+nc_eng.xc = "0.8033*HF - 0.0140*LDA + 0.2107*B88, 0.6789*LYP"
+nc_eng.grids = grids
+cc_nc = 0.3211
+cx_nc = ni.hybrid_coeff(nc_eng.xc)
+grid_exc_nc, grid_vxc_nc, grid_fxc_nc = ni.eval_xc(nc_eng.xc, grid_rho_01, deriv=2)[:3]
+grid_fr_nc, grid_fg_nc = grid_vxc_nc[0:2]
+grid_frr_nc, grid_frg_nc, grid_fgg_nc = grid_fxc_nc[0:3]
+grid_exc_nc *= grid_weight
+grid_fr_nc  *= grid_weight
+grid_fg_nc  *= grid_weight
+grid_frr_nc *= grid_weight
+grid_frg_nc *= grid_weight
+grid_fgg_nc *= grid_weight
+print("---> Hidden Block Info: NC DFT kernel sensitive grid built")
+print("     For original code, refer to `basic_gga.ipynb#XYG3-能量计算`")
+
+
+hfh = HFHelper(mol)
+hfh.get_grad()
+hfh.get_hess()
+scf_eng  = hfh.scf_eng
+scf_grad = hfh.scf_grad
+scf_hess = hfh.scf_hess
+C       = hfh.C
+Co      = hfh.Co     
+Cv      = hfh.Cv     
+e       = hfh.e      
+eo      = hfh.eo     
+ev      = hfh.ev     
+D       = hfh.D      
+F_0_ao  = hfh.F_0_ao 
+F_0_mo  = hfh.F_0_mo 
+H_0_ao  = hfh.H_0_ao 
+H_0_mo  = hfh.H_0_mo 
+eri0_ao = hfh.eri0_ao
+eri0_mo = hfh.eri0_mo
+mo_occ  = hfh.scf_eng.mo_occ
+H_1_ao  = hfh.get_H_1_ao  ()
+H_1_mo  = hfh.get_H_1_mo  ()
+S_1_ao  = hfh.get_S_1_ao  ()
+S_1_mo  = hfh.get_S_1_mo  ()
+F_1_ao  = hfh.get_F_1_ao  ()
+F_1_mo  = hfh.get_F_1_mo  ()
+eri1_ao = hfh.get_eri1_ao ()
+eri1_mo = hfh.get_eri1_mo ()
+H_2_ao  = hfh.get_H_2_ao  ()
+H_2_mo  = hfh.get_H_2_mo  ()
+S_2_ao  = hfh.get_S_2_ao  ()
+S_2_mo  = hfh.get_S_2_mo  ()
+F_2_ao  = hfh.get_F_2_ao  ()
+F_2_mo  = hfh.get_F_2_mo  ()
+eri2_ao = hfh.get_eri2_ao ()
+eri2_mo = hfh.get_eri2_mo ()
+B_1     = hfh.get_B_1     ()
+U_1     = hfh.get_U_1     ()
+Xi_2    = hfh.get_Xi_2    ()
+B_2_vo  = hfh.get_B_2_vo  ()
+U_2_vo  = hfh.get_U_2_vo  ()
+Ax0_Core = hfh.Ax0_Core
+Ax1_Core = hfh.Ax1_Core
+print("---> Hidden Block Info: Object `scf_eng` for RHF built by HFHelper")
+print("     For original code, refer to `grad_rhf.ipynb#RHF-一阶梯度`")
+
+
+int1e_ipovlp = mol.intor("int1e_ipovlp")
+int1e_ipkin  = mol.intor("int1e_ipkin" )
+int1e_ipnuc  = mol.intor("int1e_ipnuc" )
+int2e_ip1    = mol.intor("int2e_ip1"   )
+int1e_ipipkin  = mol.intor("int1e_ipipkin" ).reshape(3, 3, nao, nao)
+int1e_ipkinip  = mol.intor("int1e_ipkinip" ).reshape(3, 3, nao, nao)
+int1e_ipipnuc  = mol.intor("int1e_ipipnuc" ).reshape(3, 3, nao, nao)
+int1e_ipnucip  = mol.intor("int1e_ipnucip" ).reshape(3, 3, nao, nao)
+int1e_ipipovlp = mol.intor("int1e_ipipovlp").reshape(3, 3, nao, nao)
+int1e_ipovlpip = mol.intor("int1e_ipovlpip").reshape(3, 3, nao, nao)
+int2e_ipip1    = mol.intor("int2e_ipip1"   ).reshape(3, 3, nao, nao, nao, nao)
+int2e_ipvip1   = mol.intor("int2e_ipvip1"  ).reshape(3, 3, nao, nao, nao, nao)
+int2e_ip1ip2   = mol.intor("int2e_ip1ip2"  ).reshape(3, 3, nao, nao, nao, nao)
+def mol_slice(atm_id, mol=mol):
+    _, _, p0, p1 = mol.aoslice_by_atom()[atm_id]
+    return slice(p0, p1)
