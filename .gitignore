@@ -3,6 +3,7 @@
 *.pyc
 tmp*
 source/temp
+release
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
