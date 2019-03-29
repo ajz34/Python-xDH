@@ -1,5 +1,3 @@
-from numpy.core.multiarray import ndarray
-
 from pyscf import gto, scf, grad, lib, hessian
 import pyscf.scf.cphf
 import numpy as np
@@ -11,40 +9,41 @@ np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * 2 / 8])
 
 class HFHelper:
 
-    def __init__(self, mol):
+    def __init__(self, mol, init_scf=True):
         # Basic Engine
         self.mol = mol  # type: gto.Mole
+        self.init_scf = init_scf
         mol.verbose = 0
         self.natm = mol.natm
         self.grad = None
         self.hess = None
         # Initialize
-        self.scf_eng = scf.RHF(self.mol)
-        self.scf_eng.conv_tol = 1e-13
-        self.eng = self.scf_eng.kernel()
-        self.scf_grad = grad.RHF(self.scf_eng)
-        self.scf_hess = hessian.RHF(self.scf_eng)
+        self.scf_eng = None  # type: scf.rhf.RHF
+        self.eng = None
+        self.scf_grad = None  # type: grad.rhf.Gradients
+        self.scf_hess = None  # type: hessian.rhf.Hessian
         # From SCF calculation
-        self.C = self.scf_eng.mo_coeff
-        self.nmo = self.C.shape[1]
-        self.nao = self.C.shape[0]
-        self.nocc = mol.nelec[0]
-        self.nvir = self.nmo - self.nocc
-        self.sa = slice(0, self.nmo)
-        self.so = slice(0, self.nocc)
-        self.sv = slice(self.nocc, self.nmo)
-        self.e = self.scf_eng.mo_energy
-        self.eo = self.e[self.so]
-        self.ev = self.e[self.sv]
-        self.Co = self.C[:, self.so]
-        self.Cv = self.C[:, self.sv]
-        self.D = self.scf_eng.make_rdm1()
-        self.F_0_ao = self.scf_eng.get_fock()
-        self.F_0_mo = self.C.T @ self.F_0_ao @ self.C
-        self.H_0_ao = self.scf_eng.get_hcore()
-        self.H_0_mo = self.C.T @ self.H_0_ao @ self.C
-        self.eri0_ao = mol.intor("int2e")
-        self.eri0_mo = np.einsum("uvkl, up, vq, kr, ls -> pqrs", self.eri0_ao, self.C, self.C, self.C, self.C)
+        self.C = None
+        self.nmo = None
+        self.nao = None
+        self.nocc = None
+        self.nvir = None
+        self.mo_occ = None
+        self.sa = None
+        self.so = None
+        self.sv = None
+        self.e = None
+        self.eo = None
+        self.ev = None
+        self.Co = None
+        self.Cv = None
+        self.D = None
+        self.F_0_ao = None
+        self.F_0_mo = None
+        self.H_0_ao = None
+        self.H_0_mo = None
+        self.eri0_ao = None
+        self.eri0_mo = None
         # From gradient and hessian calculation
         self.H_1_ao = None
         self.H_1_mo = None
@@ -64,50 +63,104 @@ class HFHelper:
         self.eri2_mo = None
         self.B_1 = None
         self.U_1 = None
+        self.U_1_vo = None
+        self.U_1_ov = None
         self.Xi_2 = None
         self.B_2_vo = None
         self.U_2_vo = None
+
+        # Initializer
+        self.initialization_pyscf()
+        if init_scf:
+            self.initialization_scf()
         return
 
     # Utility functions
+
+    def initialization_pyscf(self):
+        self.scf_eng = scf.RHF(self.mol)
+        self.scf_eng.conv_tol = 1e-13
+        self.scf_eng.conv_tol_grad = 1e-13
+        if self.init_scf:
+            self.eng = self.scf_eng.kernel()
+        self.scf_grad = grad.RHF(self.scf_eng)
+        self.scf_hess = hessian.RHF(self.scf_eng)
+        return
+
+    def initialization_scf(self):
+        self.C = self.scf_eng.mo_coeff
+        self.nmo = self.C.shape[1]
+        self.nao = self.C.shape[0]
+        self.nocc = self.mol.nelec[0]
+        self.nvir = self.nmo - self.nocc
+        self.mo_occ = self.scf_eng.mo_occ
+        self.sa = slice(0, self.nmo)
+        self.so = slice(0, self.nocc)
+        self.sv = slice(self.nocc, self.nmo)
+        self.e = self.scf_eng.mo_energy
+        self.eo = self.e[self.so]
+        self.ev = self.e[self.sv]
+        self.Co = self.C[:, self.so]
+        self.Cv = self.C[:, self.sv]
+        self.D = self.scf_eng.make_rdm1()
+        self.F_0_ao = self.scf_eng.get_fock()
+        self.F_0_mo = self.C.T @ self.F_0_ao @ self.C
+        self.H_0_ao = self.scf_eng.get_hcore()
+        self.H_0_mo = self.C.T @ self.H_0_ao @ self.C
+        self.eri0_ao = self.mol.intor("int2e")
+        self.eri0_mo = np.einsum("uvkl, up, vq, kr, ls -> pqrs", self.eri0_ao, self.C, self.C, self.C, self.C)
+        return
 
     def mol_slice(self, atm_id):
         _, _, p0, p1 = self.mol.aoslice_by_atom()[atm_id]
         return slice(p0, p1)
 
-#    def Ax0_Core(self, si, sj, sk, sl, reshape=True):
-#        def fx(mo1_):
-#            mo1 = mo1_.copy()  # type: ndarray
-#            shape1 = list(mo1.shape)
-#            mo1.shape = (-1, shape1[-2], shape1[-1])
-#            r = (
-#                    4 * np.einsum("ijkl, Akl -> Aij", self.eri0_mo[si, sj, sk, sl], mo1)
-#                    - np.einsum("ikjl, Akl -> Aij", self.eri0_mo[si, sk, sj, sl], mo1)
-#                    - np.einsum("iljk, Akl -> Aij", self.eri0_mo[si, sl, sj, sk], mo1)
-#            )
-#            if reshape:
-#                shape1.pop()
-#                shape1.pop()
-#                shape1.append(r.shape[-2])
-#                shape1.append(r.shape[-1])
-#                r.shape = shape1
-#            return r
-#
-#        return fx
-
     def Ax0_Core(self, si, sj, sk, sl, reshape=True):
+        """
+
+        Parameters
+        ----------
+        si : slice or None
+        sj : slice or None
+            ``si`` and ``sj`` should be all slice or all None. If chosen None, then return an AO base Ax(mo1).
+
+        sk : slice or None
+        sl : slice or None
+            ``sk`` and ``sk`` should be all slice or all None. If chosen None, then `mo1` that passed in is assumed to
+            be a density matrix.
+        reshape : bool
+
+        Returns
+        -------
+
+        """
         C = self.C
+        if self.eri0_ao is None:
+            self.eri0_ao = self.mol.intor("int2e")
+        sij_none = si is None and sj is None
+        skl_none = sk is None and sl is None
         
         def fx(mo1_):
-            mo1 = mo1_.copy()  # type: ndarray
+            mo1 = mo1_.copy()  # type: np.ndarray
             shape1 = list(mo1.shape)
             mo1.shape = (-1, shape1[-2], shape1[-1])
-            dm1 = C[:, sk] @ mo1 @ C[:, sl].T
-            dm1 += dm1.transpose(0, 2, 1)
-            r = (
+            if skl_none:
+                dm1 = mo1
+                if dm1.shape[-2] != self.nao or dm1.shape[-1] != self.nao:
+                    raise ValueError("if `sk`, `sl` is None, we assume that mo1 passed in is an AO-based matrix!")
+            else:
+                dm1 = C[:, sk] @ mo1 @ C[:, sl].T
+            dm1 += dm1.transpose((0, 2, 1))
+            if sij_none:
+                r = (
+                    + 2 * np.einsum("uvkl, Akl -> Auv", self.eri0_ao, dm1)
+                    - 1 * np.einsum("ukvl, Akl -> Auv", self.eri0_ao, dm1)
+                )
+            else:
+                r = (
                     + 2 * np.einsum("uvkl, Akl, ui, vj -> Aij", self.eri0_ao, dm1, C[:, si], C[:, sj])
                     - 1 * np.einsum("ukvl, Akl, ui, vj -> Aij", self.eri0_ao, dm1, C[:, si], C[:, sj])
-            )
+                )
             if reshape:
                 shape1.pop()
                 shape1.pop()
@@ -117,20 +170,6 @@ class HFHelper:
             return r
 
         return fx
-
-#    def Ax1_Core(self, si, sj, sk, sl):
-#        if self.eri1_mo is None:
-#            self.get_eri1_mo()
-#
-#        def fx(mo1):
-#            r = (
-#                    4 * np.einsum("Atijkl, Bskl -> ABtsij", self.eri1_mo[:, :, si, sj, sk, sl], mo1)
-#                    - np.einsum("Atikjl, Bskl -> ABtsij", self.eri1_mo[:, :, si, sk, sj, sl], mo1)
-#                    - np.einsum("Atiljk, Bskl -> ABtsij", self.eri1_mo[:, :, si, sl, sj, sk], mo1)
-#            )
-#            return r
-#
-#        return fx
 
     def Ax1_Core(self, si, sj, sk, sl):
         C = self.C
@@ -325,7 +364,19 @@ class HFHelper:
         )
         return self.B_1
 
-    def get_U_1(self):
+    def get_U_1(self, total_u=True):
+        """
+
+        Parameters
+        ----------
+        total_u : bool, optional, default: True
+            Since total U matrix is not always needed, this is an option that only generate v-o and o-v block of U
+            matrix.
+
+        Returns
+        -------
+
+        """
         if self.B_1 is None:
             self.get_B_1()
         B_1 = self.B_1
@@ -346,6 +397,11 @@ class HFHelper:
         )[0]
         U_1_ai.shape = (self.natm, 3, self.nvir, self.nocc)
 
+        if not total_u:
+            self.U_1_vo = U_1_ai
+            self.U_1_ov = - S_1_mo[:, :, so, sv] - U_1_ai.swapaxes(2, 3)
+            return self.U_1_vo
+
         # Generate total U
         D_pq = - lib.direct_sum("p - q -> pq", self.e, self.e) + 1e-300
         U_1_pq = np.zeros((self.natm, 3, self.nmo, self.nmo))
@@ -355,12 +411,11 @@ class HFHelper:
         U_1_pq[:, :, sv, sv] = (Ax0_Core(sv, sv, sv, so)(U_1_ai) + B_1[:, :, sv, sv]) / D_pq[sv, sv]
         for p in range(self.nmo):
             U_1_pq[:, :, p, p] = - S_1_mo[:, :, p, p] / 2
-        # print(np.linalg.norm(U_1_pq + U_1_pq.swapaxes(2, 3) + S_S_pq))
         U_1_pq -= (U_1_pq + U_1_pq.swapaxes(2, 3) + S_1_mo) / 2
-        # print(np.linalg.norm(U_1_pq + U_1_pq.swapaxes(2, 3) + S_S_pq))
         U_1_pq -= (U_1_pq + U_1_pq.swapaxes(2, 3) + S_1_mo) / 2
-        # print(np.linalg.norm(U_1_pq + U_1_pq.swapaxes(2, 3) + S_S_pq))
 
+        self.U_1_vo = U_1_pq[:, :, sv, so]
+        self.U_1_ov = U_1_pq[:, :, so, sv]
         self.U_1 = U_1_pq
         return self.U_1
 
@@ -412,9 +467,7 @@ class HFHelper:
             + np.einsum("Atpa, Bspi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
             + np.einsum("Bspa, Atpi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
             # line 4
-            + np.einsum("Atkm, Bslm, ijkl -> ABtsij", U_1[:, :, :, so], U_1[:, :, :, so], 4 * eri0_mo[sv, so, :, :])
-            + np.einsum("Atkm, Bslm, ikjl -> ABtsij", U_1[:, :, :, so], U_1[:, :, :, so], - eri0_mo[sv, :, so, :])
-            + np.einsum("Atkm, Bslm, iljk -> ABtsij", U_1[:, :, :, so], U_1[:, :, :, so], - eri0_mo[sv, :, so, :])
+            + Ax0_Core(sv, so, sa, sa)(np.einsum("Atkm, Bslm -> ABtskl", U_1[:, :, :, so], U_1[:, :, :, so]))
             # line 5
             + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
             + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
@@ -423,7 +476,7 @@ class HFHelper:
             + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
             # line 7
             + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so])
-            + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so]).transpose(1, 0, 3, 2, 4, 5)
+            + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so]).transpose((1, 0, 3, 2, 4, 5))
         )
         return self.B_2_vo
 
@@ -448,4 +501,21 @@ class HFHelper:
         U_2_vo.shape = (self.natm, self.natm, 3, 3, self.nvir, self.nocc)
         self.U_2_vo = U_2_vo
         return self.U_2_vo
-        
+
+    def get_all(self):
+        self.get_H_1_mo()
+        self.get_S_1_mo()
+        self.get_F_1_mo()
+        self.get_eri1_ao()
+        # self.get_eri1_mo()
+        self.get_H_2_mo()
+        self.get_S_2_mo()
+        self.get_F_2_mo()
+        self.get_eri2_ao()
+        # self.get_eri2_mo()
+        self.get_B_1()
+        self.get_U_1()
+        self.get_Xi_2()
+        self.get_B_2_vo()
+        self.get_U_2_vo()
+        return

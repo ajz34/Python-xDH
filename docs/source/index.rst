@@ -19,6 +19,10 @@
    basic_mp2
    basic_gga
    grad_rhf
+   u_rhf
+   grad_gga
+   grad_hf_ncgga
+   hess_hf_ncgga
 
 
 Indices and tables

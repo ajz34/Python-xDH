@@ -207,3 +207,5 @@ int2e_ip1ip2   = mol.intor("int2e_ip1ip2"  ).reshape(3, 3, nao, nao, nao, nao)
 def mol_slice(atm_id, mol=mol):
     _, _, p0, p1 = mol.aoslice_by_atom()[atm_id]
     return slice(p0, p1)
+print("---> Hidden Block Info: MO derivatives built")
+print("     For original code, refer to `grad_rhf.ipynb#通用记号与程序变量`")

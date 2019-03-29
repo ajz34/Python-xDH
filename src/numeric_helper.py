@@ -8,7 +8,7 @@ BOHR = lib.param.BOHR
 
 class NumericDiff:
 
-    def __init__(self, mol, met, p5=False, idx=None, interval=3e-4, deriv=1):
+    def __init__(self, mol, met, p5=False, idx=None, interval=3e-4, deriv=1, symm=True):
         """
         Numeric difference for quantum chemistry tensors.
 
@@ -39,6 +39,11 @@ class NumericDiff:
             Energy derivative, or Fock matrix derivative, should be given 1;
             Gradient derivative, or derivative of analytic Hamiltonian core
             derivative, should be given 2.
+        symm : bool, optional, default: True
+            Judge whether symmtrize 2nd derivative.
+            Symmtrize means (ABts) -> 0.5 * (ABts) + 0.5 (BAst).
+            Since most tensors are symmtrized in this way, this option is True
+            by default.
         """
         self.mol = mol  # type: gto.Mole
         self.met = met
@@ -47,6 +52,7 @@ class NumericDiff:
         self.p5 = p5
         self.interval = interval
         self.deriv = deriv
+        self.symm = symm
         if idx is None:
             self.idx = len(self.metsp) - 2 * (deriv - 1)
         else:
@@ -136,7 +142,7 @@ class NumericDiff:
                 + 8 * self.val[slice_base + (2,)]
                 - self.val[slice_base + (3,)]
             ) / (12 * self.interval / BOHR)
-        if self.deriv == 2:
+        if self.deriv == 2 and self.symm:
             self.numdif += self.numdif.swapaxes(0, 1).swapaxes(2, 3)
             self.numdif /= 2
         return

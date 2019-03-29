@@ -1,0 +1,7 @@
+#BSUB -n 24
+#BSUB -q xp24mc2
+#BSUB -J CH4-HF-B3
+#BSUB -R span[ptile=24]
+#BSUB -o CH4-%J.out
+
+python CH4.py > CH4.log
