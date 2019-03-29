@@ -4,6 +4,8 @@
 tmp*
 source/temp
 release
+*.out
+*.bsub
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
