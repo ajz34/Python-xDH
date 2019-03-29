@@ -1,10 +1,12 @@
 from pyscf import gto, scf, grad, lib, hessian
-import pyscf.scf.cphf
+import pyscf.scf.cphf, pyscf.scf._vhf
 import numpy as np
 from functools import partial
+import os
 
+MAXMEM = int(os.getenv("MAXMEM", 2))
+np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
-np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * 2 / 8])
 
 
 class HFHelper:
@@ -132,11 +134,9 @@ class HFHelper:
 
         Returns
         -------
-
+        fx : function which pass matrix, then return Ax @ X.
         """
         C = self.C
-        if self.eri0_ao is None:
-            self.eri0_ao = self.mol.intor("int2e")
         sij_none = si is None and sj is None
         skl_none = sk is None and sl is None
         
@@ -151,16 +151,13 @@ class HFHelper:
             else:
                 dm1 = C[:, sk] @ mo1 @ C[:, sl].T
             dm1 += dm1.transpose((0, 2, 1))
-            if sij_none:
-                r = (
-                    + 2 * np.einsum("uvkl, Akl -> Auv", self.eri0_ao, dm1)
-                    - 1 * np.einsum("ukvl, Akl -> Auv", self.eri0_ao, dm1)
-                )
-            else:
-                r = (
-                    + 2 * np.einsum("uvkl, Akl, ui, vj -> Aij", self.eri0_ao, dm1, C[:, si], C[:, sj])
-                    - 1 * np.einsum("ukvl, Akl, ui, vj -> Aij", self.eri0_ao, dm1, C[:, si], C[:, sj])
-                )
+            # Use PySCF higher functions to avoid explicit eri0_ao storage
+            r = (
+                + 2 * self.scf_eng.get_j(dm=dm1)
+                - 1 * self.scf_eng.get_k(dm=dm1)
+            )
+            if not sij_none:
+                r = np.einsum("Auv, ui, vj -> Aij", r, C[:, si], C[:, sj])
             if reshape:
                 shape1.pop()
                 shape1.pop()
@@ -171,7 +168,7 @@ class HFHelper:
 
         return fx
 
-    def Ax1_Core(self, si, sj, sk, sl):
+    def Ax1_Core_use_eri1_ao(self, si, sj, sk, sl):
         C = self.C
         if self.eri1_ao is None:
             self.get_eri1_ao()
@@ -184,6 +181,94 @@ class HFHelper:
                     - 1 * np.einsum("Atukvl, Bskl, ui, vj -> ABtsij", self.eri1_ao, dm1, C[:, si], C[:, sj])
             )
             return r
+
+        return fx
+
+    def Ax1_Core(self, si, sj, sk, sl):
+        """
+        Calculate Axt @ X.
+
+        This function has been modified so that eri1_ao is not essential to be stored. for previous version of Ax1_Core,
+        refer to Ax1_Core_use_eri1_ao.
+
+        Parameters
+        ----------
+        si : slice or None
+        sj : slice or None
+            ``si`` and ``sj`` should be all slice or all None. If chosen None, then return an AO base Ax(mo1).
+
+        sk : slice or None
+        sl : slice or None
+            ``sk`` and ``sk`` should be all slice or all None. If chosen None, then `mo1` that passed in is assumed to
+            be a density matrix.
+
+        Returns
+        -------
+        fx : function which pass matrix, then return Axt @ X.
+        """
+        C = self.C
+        _vhf = pyscf.scf._vhf
+        natm = self.natm
+        nao = self.nao
+        mol = self.mol
+
+        sij_none = si is None and sj is None
+        skl_none = sk is None and sl is None
+
+        def fx(mo1):
+            # It is assumed that mo1 is Bs** like
+            if len(mo1.shape) != 4:
+                raise ValueError("Passed in mo1 should be Bs** like, so length of mo1.shape should be 4.")
+            if skl_none:
+                dm1 = mo1
+                if dm1.shape[-2] != self.nao or dm1.shape[-1] != self.nao:
+                    raise ValueError("if `sk`, `sl` is None, we assume that mo1 passed in is an AO-based matrix!")
+            else:
+                dm1 = C[:, sk] @ mo1 @ C[:, sl].T
+            dm1 += dm1.swapaxes(-1, -2)
+
+            # create a return tensor
+            if sij_none:
+                ax_final = np.zeros((natm, dm1.shape[0], 3, dm1.shape[1], nao, nao))
+            else:
+                ax_final = np.zeros((natm, dm1.shape[0], 3, dm1.shape[1], si.stop - si.start, sj.stop - sj.start))
+
+            # Actual calculation
+            for B in range(dm1.shape[0]):
+                for s in range(dm1.shape[1]):
+                    dm1Bs = dm1[B, s]
+                    # (ut v | k l), (ut k | v l)
+                    j_1, k_1 = _vhf.direct_mapdm(
+                        mol._add_suffix('int2e_ip1'), "s2kl",
+                        ("lk->s1ij", "jk->s1il"),
+                        dm1Bs, 3,
+                        mol._atm, mol._bas, mol._env
+                    )
+                    for A in range(natm):
+                        ax = np.zeros((3, nao, nao))
+                        shl0, shl1, p0, p1 = mol.aoslice_by_atom()[A]
+                        sA = slice(p0, p1)  # equivalent to mol_slice(A)
+                        ax[:, sA, :] -= 2 * j_1[:, sA, :]
+                        ax[:, :, sA] -= 2 * j_1[:, sA, :].swapaxes(-1, -2)
+                        ax[:, sA, :] += 1 * k_1[:, sA, :]
+                        ax[:, :, sA] += 1 * k_1[:, sA, :].swapaxes(-1, -2)
+                        # (kt l | u v), (kt u | l v)
+                        j_1A, k_1A = _vhf.direct_mapdm(
+                            mol._add_suffix('int2e_ip1'), "s2kl",
+                            ("ji->s1kl", "li->s1kj"),
+                            dm1Bs[:, p0:p1], 3,
+                            mol._atm, mol._bas, mol._env,
+                            shls_slice=((shl0, shl1) + (0, mol.nbas) * 3)
+                        )
+                        ax -= 4 * j_1A
+                        ax += k_1A + k_1A.swapaxes(-1, -2)
+
+                        if sij_none:
+                            ax_final[A, B, :, s] = ax
+                        else:
+                            ax_final[A, B, :, s] = C[:, si].T @ ax @ C[:, sj]
+
+            return ax_final
 
         return fx
 

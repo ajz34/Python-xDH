@@ -7,7 +7,7 @@ def val_from_fchk(key, file_path):
     vec = []
     with open(file_path, "r") as file:
         for l in file:
-            if (l[:len(key)] == key):
+            if l[:len(key)] == key:
                 try:
                     expect_size = int(l[len(key):].split()[2])
                     flag_read = True
@@ -17,9 +17,9 @@ def val_from_fchk(key, file_path):
                         return float(l[len(key):].split()[1])
                     except IndexError:
                         continue
-            if (flag_read):
+            if flag_read:
                 try:
-                    vec += [ float(i) for i in l.split() ]
+                    vec += [float(i) for i in l.split()]
                 except ValueError:
                     break
     if len(vec) != expect_size:

@@ -4,9 +4,11 @@ import numpy as np
 from functools import partial
 from pyscf import scf
 import pyscf.scf.cphf
+import os
 
+MAXMEM = int(os.getenv("MAXMEM", 2))
+np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
-np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * 2 / 8])
 
 
 class NCGGAEngine:
@@ -40,6 +42,7 @@ class NCGGAEngine:
         D = scfh.D
         sv = scfh.sv
         so = scfh.so
+        natm = scfh.natm
 
         if scfh.H_1_ao is None:
             scfh.get_H_1_ao()
@@ -50,16 +53,22 @@ class NCGGAEngine:
         if nch.F_0_mo is None:
             nch.F_0_ao = nch.scf_eng.get_fock(dm=D)
             nch.F_0_mo = nch.C.T @ nch.F_0_ao @ nch.C
-        if scfh.eri1_ao is None:
-            scfh.get_eri1_ao()
 
         E_S = (
             + np.einsum("Atuv, uv -> At", scfh.H_1_ao, D)
-            + 0.5 * np.einsum("Atuvkl, uv, kl -> At", scfh.eri1_ao, D, D)
-            - 0.25 * nch.cx * np.einsum("Atukvl, uv, kl -> At", scfh.eri1_ao, D, D)
+            # + 0.5 * np.einsum("Atuvkl, uv, kl -> At", scfh.eri1_ao, D, D)
+            # - 0.25 * nch.cx * np.einsum("Atukvl, uv, kl -> At", scfh.eri1_ao, D, D)
             + np.einsum("g, Atg -> At", nch.kerh.fr, nch.grdh.A_rho_1)
             + 2 * np.einsum("g, rg, Atrg -> At", nch.kerh.fg, nch.grdh.rho_1, nch.grdh.A_rho_2)
         )
+        # From memory consumption point, we use higher subroutines in PySCF to generate ERI contribution
+        jk_1 = (
+            + 2 * scfh.scf_grad.get_j(dm=D)
+            - nch.cx * scfh.scf_grad.get_k(dm=D)
+        )
+        for A in range(natm):
+            sA = scfh.mol_slice(A)
+            E_S[A] += np.einsum("tuv, uv -> t", jk_1[:, sA], D[sA])
 
         Z_1 = scf.cphf.solve(scfh.Ax0_Core(sv, so, sv, so), scfh.e, scfh.mo_occ, nch.F_0_mo[sv, so])[0]
         E_U = (

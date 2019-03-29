@@ -6,14 +6,16 @@ from hf_helper import HFHelper
 from grid_helper import GridHelper, KernelHelper
 import numpy as np
 from functools import partial
+import os
 
+MAXMEM = int(os.getenv("MAXMEM", 2))
+np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
-np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * 2 / 8])
 
 
 class GGAHelper(HFHelper):
 
-    def __init__(self, mol, xc, grids, init_scf=False):
+    def __init__(self, mol, xc, grids, init_scf=True):
         self.xc = xc  # type: str
         self.grids = grids  # type: dft.gen_grid.Grids
         self.scf_eng = None  # type: dft.rks.RKS

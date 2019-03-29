@@ -2,9 +2,11 @@ from pyscf import dft
 import pyscf.dft.numint
 import numpy as np
 from functools import partial
+import os
 
+MAXMEM = int(os.getenv("MAXMEM", 2))
+np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
-np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * 2 / 8])
 
 
 class GridHelper:
@@ -23,7 +25,7 @@ class GridHelper:
         grid_weight = grids.weights
         grid_ao = np.empty((20, ngrid, nao))  # 20 at first dimension is related to 3rd derivative of orbital
         current_grid_count = 0
-        for ao, _, _, _ in ni.block_loop(mol, grids, nao, 3, self.mol.max_memory):
+        for ao, _, _, _ in ni.block_loop(mol, grids, nao, 3, 2000):
             grid_ao[:, current_grid_count:current_grid_count+ao.shape[1]] = ao
             current_grid_count += ao.shape[1]
         current_grid_count = None
