@@ -535,7 +535,6 @@ class HFHelper:
         e = self.e
         U_1 = self.U_1
         F_1_mo = self.F_1_mo
-        eri0_mo = self.eri0_mo
         Ax0_Core = self.Ax0_Core
         Ax1_Core = self.Ax1_Core
         self.B_2_vo = (
