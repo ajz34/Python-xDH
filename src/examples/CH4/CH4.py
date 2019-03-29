@@ -4,6 +4,7 @@ sys.path.append('../../')
 from hf_helper import HFHelper
 from gga_helper import GGAHelper
 from ncgga_engine import NCGGAEngine
+from numeric_helper import NumericDiff
 import numpy as np
 from functools import partial
 from pyscf import gto, dft
@@ -74,3 +75,26 @@ if __name__ == "__main__":
     time0 = time.time()
     print(ncengine.E_2)
 
+    def mol_to_E_0(mol):
+        scfh_ = HFHelper(mol)
+        nch_ = GGAHelper(mol, "b3lypg", grids, init_scf=False)
+        ncengine_ = NCGGAEngine(scfh_, nch_)
+        return ncengine_.get_E_0()
+
+    def mol_to_E_1(mol):
+        scfh_ = HFHelper(mol)
+        nch_ = GGAHelper(mol, "b3lypg", grids, init_scf=False)
+        ncengine_ = NCGGAEngine(scfh_, nch_)
+        return ncengine_.get_E_1()
+
+    E_0_diff = NumericDiff(mol, mol_to_E_0, interval=1e-4).get_numdif()
+    print("E_0_diff             ", time.time() - time0)
+    time0 = time.time()
+    print(abs(ncengine.E_1 - E_0_diff).max())
+
+    E_1_diff = NumericDiff(mol, mol_to_E_1, interval=1e-4, deriv=2).get_numdif()
+    print("E_1_diff             ", time.time() - time0)
+    time0 = time.time()
+    print(abs(ncengine.E_2 - E_1_diff).max())
+
+    
