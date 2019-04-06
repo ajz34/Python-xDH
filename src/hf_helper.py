@@ -1,5 +1,6 @@
 from pyscf import gto, scf, grad, lib, hessian
-import pyscf.scf.cphf, pyscf.scf._vhf
+import pyscf.scf.cphf
+from pyscf.scf import _vhf
 import numpy as np
 from functools import partial
 import os
@@ -427,6 +428,24 @@ class HFHelper:
                 - 0.5 * np.einsum("ABtsukvl, kl -> ABtsuv", self.eri2_ao, self.D)
         )
         return self.F_2_ao
+
+    def get_F_2_ao_unfinished(self):
+        if self.H_2_ao is None:
+            self.get_H_2_ao()
+        D = self.D
+        mol = self.mol
+        natm = self.natm
+        nao = self.nao
+
+        F_2_ao = self.H_2_ao.copy()
+
+        # Tricks in F_2_ao generation on eri2 part
+        # int2e_ipip1: contrib1 (j_1), contrib5 (k_1)
+        # int2e_ipvip1: contrib2 (j_2), contrib6 (k_2)
+        # int2e_ip1ip2: contrib3,4 (j_3), contrib7 (k_3)
+
+
+
 
     def get_F_2_mo(self):
         if self.F_2_ao is None:
