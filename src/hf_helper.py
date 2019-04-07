@@ -16,7 +16,7 @@ class HFHelper:
         # Basic Engine
         self.mol = mol  # type: gto.Mole
         self.init_scf = init_scf
-        mol.verbose = 0
+        # mol.verbose = 0
         self.natm = mol.natm
         self.grad = None
         self.hess = None
