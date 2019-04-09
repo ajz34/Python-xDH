@@ -83,8 +83,8 @@ class HFHelper:
 
     def initialization_pyscf(self):
         self.scf_eng = scf.RHF(self.mol)
-        self.scf_eng.conv_tol = 1e-13
-        self.scf_eng.conv_tol_grad = 1e-13
+        self.scf_eng.conv_tol = 1e-11
+        self.scf_eng.conv_tol_grad = 1e-9
         if self.init_scf:
             self.eng = self.scf_eng.kernel()
         self.scf_grad = grad.RHF(self.scf_eng)
