@@ -18,6 +18,7 @@ class NCGGAEngine:
         self.nch = nch  # type: GGAHelper
 
         self.nch.C = self.scfh.C
+        self.nch.mo_occ = self.scfh.mo_occ
         self.nch.D = self.scfh.D
 
         self.E_0 = None
@@ -43,10 +44,6 @@ class NCGGAEngine:
         so = scfh.so
         natm = scfh.natm
 
-        if scfh.H_1_ao is None:
-            scfh.get_H_1_ao()
-        if scfh.B_1 is None:
-            scfh.get_B_1()
         if nch.kerh is None:
             nch.get_kerh()
         if nch.F_0_mo is None:
@@ -84,16 +81,6 @@ class NCGGAEngine:
 
         if nch.kerh is None:
             nch.get_kerh()
-        if scfh.U_1 is None:
-            scfh.get_U_1(total_u=False)
-        if scfh.F_2_ao is None:
-            scfh.get_F_2_ao()
-        if scfh.S_2_mo is None:
-            scfh.get_S_2_mo()
-        if scfh.H_2_ao is None:
-            scfh.get_H_2_ao()
-        if nch.F_1_mo is None:
-            nch.F_1_mo = scfh.C.T @ nch.scf_hess.make_h1(mo_coeff=scfh.C, mo_occ=scfh.mo_occ) @ scfh.C
 
         return
 

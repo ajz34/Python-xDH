@@ -46,25 +46,25 @@ class HFHelper:
         self.H_0_ao = None
         self.H_0_mo = None
         # From gradient and hessian calculation
-        self.H_1_ao = None
-        self.H_1_mo = None
-        self.S_1_ao = None
-        self.S_1_mo = None
-        self.F_1_ao = None
-        self.F_1_mo = None
-        self.H_2_ao = None
-        self.H_2_mo = None
-        self.S_2_ao = None
-        self.S_2_mo = None
-        self.F_2_ao = None
-        self.F_2_mo = None
-        self.B_1 = None
-        self.U_1 = None
-        self.U_1_vo = None
-        self.U_1_ov = None
-        self.Xi_2 = None
-        self.B_2_vo = None
-        self.U_2_vo = None
+        self._H_1_ao = None
+        self._H_1_mo = None
+        self._S_1_ao = None
+        self._S_1_mo = None
+        self._F_1_ao = None
+        self._F_1_mo = None
+        self._H_2_ao = None
+        self._H_2_mo = None
+        self._S_2_ao = None
+        self._S_2_mo = None
+        self._F_2_ao = None
+        self._F_2_mo = None
+        self._B_1 = None
+        self._U_1 = None
+        self._U_1_vo = None
+        self._U_1_ov = None
+        self._Xi_2 = None
+        self._B_2_vo = None
+        self._U_2_vo = None
         # ERI
         self._eri0_ao = None
         self._eri0_mo = None
@@ -296,43 +296,49 @@ class HFHelper:
         self.hess = self.scf_hess.kernel()
         return self.hess
 
-    def get_H_1_ao(self):
-        self.H_1_ao = np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)])
-        return self.H_1_ao
+    @property
+    def H_1_ao(self):
+        if self._H_1_ao is None:
+            self._H_1_ao = np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)])
+        return self._H_1_ao
 
-    def get_H_1_mo(self):
-        if self.H_1_ao is None:
-            self.get_H_1_ao()
-        self.H_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.H_1_ao, self.C, self.C)
-        return self.H_1_mo
+    @property
+    def H_1_mo(self):
+        if self._H_1_mo is None:
+            self._H_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.H_1_ao, self.C, self.C)
+        return self._H_1_mo
 
-    def get_F_1_ao(self):
-        self.F_1_ao = self.scf_hess.make_h1(self.C, self.scf_eng.mo_occ)
-        return self.F_1_ao
+    @property
+    def F_1_ao(self):
+        if self._F_1_ao is None:
+            self._F_1_ao = self.scf_hess.make_h1(self.C, self.mo_occ)
+        return self._F_1_ao
 
-    def get_F_1_mo(self):
-        if self.F_1_ao is None:
-            self.get_F_1_ao()
-        self.F_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.F_1_ao, self.C, self.C)
-        return self.F_1_mo
+    @property
+    def F_1_mo(self):
+        if self._F_1_mo is None:
+            self._F_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.F_1_ao, self.C, self.C)
+        return self._F_1_mo
 
-    def get_S_1_ao(self):
-        int1e_ipovlp = self.mol.intor("int1e_ipovlp")
+    @property
+    def S_1_ao(self):
+        if self._S_1_ao is None:
+            int1e_ipovlp = self.mol.intor("int1e_ipovlp")
 
-        def get_S_S_ao(A):
-            ao_matrix = np.zeros((3, self.nao, self.nao))
-            sA = self.mol_slice(A)
-            ao_matrix[:, sA] = -int1e_ipovlp[:, sA]
-            return ao_matrix + ao_matrix.swapaxes(1, 2)
+            def get_S_S_ao(A):
+                ao_matrix = np.zeros((3, self.nao, self.nao))
+                sA = self.mol_slice(A)
+                ao_matrix[:, sA] = -int1e_ipovlp[:, sA]
+                return ao_matrix + ao_matrix.swapaxes(1, 2)
 
-        self.S_1_ao = np.array([get_S_S_ao(A) for A in range(self.natm)])
-        return self.S_1_ao
+            self._S_1_ao = np.array([get_S_S_ao(A) for A in range(self.natm)])
+        return self._S_1_ao
 
-    def get_S_1_mo(self):
-        if self.S_1_ao is None:
-            self.get_S_1_ao()
-        self.S_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.S_1_ao, self.C, self.C)
-        return self.S_1_mo
+    @property
+    def S_1_mo(self):
+        if self._S_1_mo is None:
+            self._S_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.S_1_ao, self.C, self.C)
+        return self._S_1_mo
 
     @property
     def eri1_ao(self):
@@ -358,38 +364,42 @@ class HFHelper:
             self._eri1_mo = np.einsum("Atuvkl, up, vq, kr, ls -> Atpqrs", self.eri1_ao, self.C, self.C, self.C, self.C)
         return self._eri1_mo
 
-    def get_H_2_ao(self):
-        self.H_2_ao = np.array(
-            [[self.scf_hess.hcore_generator()(A, B) for B in range(self.natm)] for A in range(self.natm)])
-        return self.H_2_ao
+    @property
+    def H_2_ao(self):
+        if self._H_2_ao is None:
+            self._H_2_ao = np.array(
+                [[self.scf_hess.hcore_generator()(A, B) for B in range(self.natm)] for A in range(self.natm)])
+        return self._H_2_ao
 
-    def get_H_2_mo(self):
-        if self.H_2_ao is None:
-            self.get_H_2_ao()
-        self.H_2_mo = np.einsum("ABtsuv, up, vq -> ABtspq", self.H_2_ao, self.C, self.C)
-        return self.H_2_mo
+    @property
+    def H_2_mo(self):
+        if self._H_2_mo is None:
+            self._H_2_mo = np.einsum("ABtsuv, up, vq -> ABtspq", self.H_2_ao, self.C, self.C)
+        return self._H_2_mo
 
-    def get_S_2_ao(self):
-        int1e_ipovlpip = self.mol.intor("int1e_ipovlpip")
-        int1e_ipipovlp = self.mol.intor("int1e_ipipovlp")
+    @property
+    def S_2_ao(self):
+        if self._S_2_ao is None:
+            int1e_ipovlpip = self.mol.intor("int1e_ipovlpip")
+            int1e_ipipovlp = self.mol.intor("int1e_ipipovlp")
 
-        def get_S_SS_ao(A, B):
-            ao_matrix = np.zeros((9, self.nao, self.nao))
-            sA = self.mol_slice(A)
-            sB = self.mol_slice(B)
-            ao_matrix[:, sA, sB] = int1e_ipovlpip[:, sA, sB]
-            if A == B:
-                ao_matrix[:, sA] += int1e_ipipovlp[:, sA]
-            return (ao_matrix + ao_matrix.swapaxes(1, 2)).reshape(3, 3, self.nao, self.nao)
+            def get_S_SS_ao(A, B):
+                ao_matrix = np.zeros((9, self.nao, self.nao))
+                sA = self.mol_slice(A)
+                sB = self.mol_slice(B)
+                ao_matrix[:, sA, sB] = int1e_ipovlpip[:, sA, sB]
+                if A == B:
+                    ao_matrix[:, sA] += int1e_ipipovlp[:, sA]
+                return (ao_matrix + ao_matrix.swapaxes(1, 2)).reshape(3, 3, self.nao, self.nao)
 
-        self.S_2_ao = np.array([[get_S_SS_ao(A, B) for B in range(self.natm)] for A in range(self.natm)])
-        return self.S_2_ao
+            self._S_2_ao = np.array([[get_S_SS_ao(A, B) for B in range(self.natm)] for A in range(self.natm)])
+        return self._S_2_ao
 
-    def get_S_2_mo(self):
-        if self.S_2_ao is None:
-            self.get_S_2_ao()
-        self.S_2_mo = np.einsum("ABtsuv, up, vq -> ABtspq", self.S_2_ao, self.C, self.C)
-        return self.S_2_mo
+    @property
+    def S_2_mo(self):
+        if self._S_2_mo is None:
+            self._S_2_mo = np.einsum("ABtsuv, up, vq -> ABtspq", self.S_2_ao, self.C, self.C)
+        return self._S_2_mo
 
     @property
     def eri2_ao(self):
@@ -439,16 +449,12 @@ class HFHelper:
         return self._eri2_mo
 
     def get_F_2_ao_byeri2(self):
-        if self.H_2_ao is None:
-            self.get_H_2_ao()
-        if self.eri2_ao is None:
-            self.eri2_ao()
-        self.F_2_ao = (
+        F_2_ao = (
                 self.H_2_ao
                 + np.einsum("ABtsuvkl, kl -> ABtsuv", self.eri2_ao, self.D)
                 - 0.5 * np.einsum("ABtsukvl, kl -> ABtsuv", self.eri2_ao, self.D)
         )
-        return self.F_2_ao
+        return F_2_ao
 
     def get_F_2_ao_JKcontrib_(self, cx=1):
 
@@ -601,34 +607,51 @@ class HFHelper:
 
         return JKcontrib
 
-    def get_F_2_ao(self):
-        if self.H_2_ao is None:
-            self.get_H_2_ao()
-        self.F_2_ao = self.H_2_ao + self.get_F_2_ao_JKcontrib_()
-        return self.F_2_ao
+    @property
+    def F_2_ao(self):
+        if self._F_2_ao is None:
+            self._F_2_ao = self.H_2_ao + self.get_F_2_ao_JKcontrib_()
+        return self._F_2_ao
 
-    def get_F_2_mo(self):
-        if self.F_2_ao is None:
-            self.get_F_2_ao()
-        self.F_2_mo = np.einsum("ABtsuv, up, vq -> pq", self.F_2_ao, self.C, self.C)
-        return self.F_2_mo
+    @property
+    def F_2_mo(self):
+        if self._F_2_mo is None:
+            self._F_2_mo = np.einsum("ABtsuv, up, vq -> pq", self.F_2_ao, self.C, self.C)
+        return self._F_2_mo
 
-    def get_B_1(self):
-        if self.F_1_mo is None:
-            self.get_F_1_mo()
-        if self.S_1_mo is None:
-            self.get_S_1_mo()
-        sa = self.sa
-        so = self.so
+    @property
+    def B_1(self):
+        if self._B_1 is None:
+            sa = self.sa
+            so = self.so
 
-        self.B_1 = (
-                self.F_1_mo
-                - self.S_1_mo * self.e
-                - 0.5 * self.Ax0_Core(sa, sa, so, so)(self.S_1_mo[:, :, so, so])
-        )
-        return self.B_1
+            self._B_1 = (
+                    self.F_1_mo
+                    - self.S_1_mo * self.e
+                    - 0.5 * self.Ax0_Core(sa, sa, so, so)(self.S_1_mo[:, :, so, so])
+            )
+        return self._B_1
 
-    def get_U_1(self, total_u=True):
+    @property
+    def U_1_vo(self):
+        if self._U_1_vo is None:
+            self._get_U_1(total_u=False)
+        return self._U_1_vo
+
+    @property
+    def U_1_ov(self):
+        if self._U_1_ov is None:
+            self._get_U_1(total_u=False)
+        return self._U_1_ov
+
+    @property
+    def U_1(self):
+        warnings.warn("U_1: Generating total U matrix should be considered as numerical unstable!", FutureWarning)
+        if self._U_1 is None:
+            self._get_U_1(total_u=True)
+        return self._U_1
+
+    def _get_U_1(self, total_u=True):
         """
 
         Parameters
@@ -641,8 +664,6 @@ class HFHelper:
         -------
 
         """
-        if self.B_1 is None:
-            self.get_B_1()
         B_1 = self.B_1
         S_1_mo = self.S_1_mo
         Ax0_Core = self.Ax0_Core
@@ -662,119 +683,99 @@ class HFHelper:
         U_1_ai.shape = (self.natm, 3, self.nvir, self.nocc)
 
         if not total_u:
-            self.U_1_vo = U_1_ai
-            self.U_1_ov = - S_1_mo[:, :, so, sv] - U_1_ai.swapaxes(2, 3)
-            return self.U_1_vo
+            self._U_1_vo = U_1_ai
+            self._U_1_ov = - S_1_mo[:, :, so, sv] - U_1_ai.swapaxes(2, 3)
+            return self._U_1_vo
+        else:
+            # Generate total U
+            D_pq = - lib.direct_sum("p - q -> pq", self.e, self.e) + 1e-300
+            U_1_pq = np.zeros((self.natm, 3, self.nmo, self.nmo))
+            U_1_pq[:, :, sv, so] = U_1_ai
+            U_1_pq[:, :, so, sv] = - S_1_mo[:, :, so, sv] - U_1_pq[:, :, sv, so].swapaxes(2, 3)
+            U_1_pq[:, :, so, so] = (Ax0_Core(so, so, sv, so)(U_1_ai) + B_1[:, :, so, so]) / D_pq[so, so]
+            U_1_pq[:, :, sv, sv] = (Ax0_Core(sv, sv, sv, so)(U_1_ai) + B_1[:, :, sv, sv]) / D_pq[sv, sv]
+            for p in range(self.nmo):
+                U_1_pq[:, :, p, p] = - S_1_mo[:, :, p, p] / 2
+            U_1_pq -= (U_1_pq + U_1_pq.swapaxes(2, 3) + S_1_mo) / 2
+            U_1_pq -= (U_1_pq + U_1_pq.swapaxes(2, 3) + S_1_mo) / 2
 
-        # Generate total U
-        D_pq = - lib.direct_sum("p - q -> pq", self.e, self.e) + 1e-300
-        U_1_pq = np.zeros((self.natm, 3, self.nmo, self.nmo))
-        U_1_pq[:, :, sv, so] = U_1_ai
-        U_1_pq[:, :, so, sv] = - S_1_mo[:, :, so, sv] - U_1_pq[:, :, sv, so].swapaxes(2, 3)
-        U_1_pq[:, :, so, so] = (Ax0_Core(so, so, sv, so)(U_1_ai) + B_1[:, :, so, so]) / D_pq[so, so]
-        U_1_pq[:, :, sv, sv] = (Ax0_Core(sv, sv, sv, so)(U_1_ai) + B_1[:, :, sv, sv]) / D_pq[sv, sv]
-        for p in range(self.nmo):
-            U_1_pq[:, :, p, p] = - S_1_mo[:, :, p, p] / 2
-        U_1_pq -= (U_1_pq + U_1_pq.swapaxes(2, 3) + S_1_mo) / 2
-        U_1_pq -= (U_1_pq + U_1_pq.swapaxes(2, 3) + S_1_mo) / 2
+            self._U_1_vo = U_1_pq[:, :, sv, so]
+            self._U_1_ov = U_1_pq[:, :, so, sv]
+            self._U_1 = U_1_pq
+            return self._U_1
 
-        self.U_1_vo = U_1_pq[:, :, sv, so]
-        self.U_1_ov = U_1_pq[:, :, so, sv]
-        self.U_1 = U_1_pq
-        return self.U_1
+    @property
+    def Xi_2(self):
+        if self._Xi_2 is None:
+            U_1 = self.U_1
+            S_1_mo = self.S_1_mo
 
-    def get_Xi_2(self):
-        if self.S_2_mo is None:
-            self.get_S_2_mo()
-        if self.U_1 is None:
-            self.get_U_1()
-        U_1 = self.U_1
-        S_1_mo = self.S_1_mo
+            self._Xi_2 = (
+                    self.S_2_mo
+                    + np.einsum("Atpm, Bsqm -> ABtspq", U_1, U_1)
+                    + np.einsum("Bspm, Atqm -> ABtspq", U_1, U_1)
+                    - np.einsum("Atpm, Bsqm -> ABtspq", S_1_mo, S_1_mo)
+                    - np.einsum("Bspm, Atqm -> ABtspq", S_1_mo, S_1_mo)
+            )
+        return self._Xi_2
 
-        self.Xi_2 = (
-                self.S_2_mo
-                + np.einsum("Atpm, Bsqm -> ABtspq", U_1, U_1)
-                + np.einsum("Bspm, Atqm -> ABtspq", U_1, U_1)
-                - np.einsum("Atpm, Bsqm -> ABtspq", S_1_mo, S_1_mo)
-                - np.einsum("Bspm, Atqm -> ABtspq", S_1_mo, S_1_mo)
-        )
-        return self.Xi_2
+    @property
+    def B_2_vo(self):
+        if self._B_2_vo is None:
+            sv = self.sv
+            so = self.so
+            sa = self.sa
+            eo = self.eo
+            e = self.e
+            U_1 = self.U_1
+            F_1_mo = self.F_1_mo
+            Ax0_Core = self.Ax0_Core
+            Ax1_Core = self.Ax1_Core
+            self._B_2_vo = (
+                # line 1
+                np.einsum("ABtsuv, ua, vi -> ABtsai", self.F_2_ao, self.Cv, self.Co)
+                - np.einsum("ABtsai, i -> ABtsai", self.Xi_2[:, :, :, :, sv, so], eo)
+                - 0.5 * Ax0_Core(sv, so, so, so)(self.Xi_2[:, :, :, :, so, so])
+                # line 2
+                + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
+                + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
+                + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
+                + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
+                # line 3
+                + np.einsum("Atpa, Bspi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
+                + np.einsum("Bspa, Atpi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
+                # line 4
+                + Ax0_Core(sv, so, sa, sa)(np.einsum("Atkm, Bslm -> ABtskl", U_1[:, :, :, so], U_1[:, :, :, so]))
+                # line 5
+                + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
+                + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
+                # line 6
+                + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
+                + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
+                # line 7
+                + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so])
+                + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so]).transpose((1, 0, 3, 2, 4, 5))
+            )
+        return self._B_2_vo
 
-    def get_B_2_vo(self):
-        if self.F_2_ao is None:
-            self.get_F_2_ao()
-        if self.Xi_2 is None:
-            self.get_Xi_2()
-        if self.F_1_mo is None:
-            self.get_F_1_mo()
-        sv = self.sv
-        so = self.so
-        sa = self.sa
-        eo = self.eo
-        e = self.e
-        U_1 = self.U_1
-        F_1_mo = self.F_1_mo
-        Ax0_Core = self.Ax0_Core
-        Ax1_Core = self.Ax1_Core
-        self.B_2_vo = (
-            # line 1
-            np.einsum("ABtsuv, ua, vi -> ABtsai", self.F_2_ao, self.Cv, self.Co)
-            - np.einsum("ABtsai, i -> ABtsai", self.Xi_2[:, :, :, :, sv, so], eo)
-            - 0.5 * Ax0_Core(sv, so, so, so)(self.Xi_2[:, :, :, :, so, so])
-            # line 2
-            + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
-            + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
-            + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
-            + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
-            # line 3
-            + np.einsum("Atpa, Bspi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
-            + np.einsum("Bspa, Atpi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
-            # line 4
-            + Ax0_Core(sv, so, sa, sa)(np.einsum("Atkm, Bslm -> ABtskl", U_1[:, :, :, so], U_1[:, :, :, so]))
-            # line 5
-            + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
-            + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
-            # line 6
-            + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
-            + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
-            # line 7
-            + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so])
-            + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so]).transpose((1, 0, 3, 2, 4, 5))
-        )
-        return self.B_2_vo
+    @property
+    def U_2_vo(self):
+        if self._U_2_vo is None:
+            B_2_vo = self.B_2_vo
+            Ax0_Core = self.Ax0_Core
+            sv = self.sv
+            so = self.so
 
-    def get_U_2_vo(self):
-        if self.B_2_vo is None:
-            self.get_B_2_vo()
-        B_2_vo = self.B_2_vo
-        Ax0_Core = self.Ax0_Core
-        sv = self.sv
-        so = self.so
-
-        # Generate v-o block of U
-        U_2_vo = scf.cphf.solve(
-            self.Ax0_Core(sv, so, sv, so),
-            self.e,
-            self.scf_eng.mo_occ,
-            B_2_vo.reshape(-1, self.nvir, self.nocc),
-            max_cycle=500,
-            tol=1e-15,
-            hermi=False
-        )[0]
-        U_2_vo.shape = (self.natm, self.natm, 3, 3, self.nvir, self.nocc)
-        self.U_2_vo = U_2_vo
-        return self.U_2_vo
-
-    def get_all(self):
-        self.get_H_1_mo()
-        self.get_S_1_mo()
-        self.get_F_1_mo()
-        self.get_H_2_mo()
-        self.get_S_2_mo()
-        self.get_F_2_mo()
-        self.get_B_1()
-        self.get_U_1()
-        self.get_Xi_2()
-        self.get_B_2_vo()
-        self.get_U_2_vo()
-        return
+            # Generate v-o block of U
+            U_2_vo = scf.cphf.solve(
+                self.Ax0_Core(sv, so, sv, so),
+                self.e,
+                self.scf_eng.mo_occ,
+                B_2_vo.reshape(-1, self.nvir, self.nocc),
+                max_cycle=500,
+                tol=1e-15,
+                hermi=False
+            )[0]
+            U_2_vo.shape = (self.natm, self.natm, 3, 3, self.nvir, self.nocc)
+            self._U_2_vo = U_2_vo
+        return self._U_2_vo
