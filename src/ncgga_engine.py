@@ -56,8 +56,6 @@ class NCGGAEngine:
 
         E_S = (
             + np.einsum("Atuv, uv -> At", scfh.H_1_ao, D)
-            # + 0.5 * np.einsum("Atuvkl, uv, kl -> At", scfh.eri1_ao, D, D)
-            # - 0.25 * nch.cx * np.einsum("Atukvl, uv, kl -> At", scfh.eri1_ao, D, D)
             + np.einsum("g, Atg -> At", nch.kerh.fr, nch.grdh.A_rho_1)
             + 2 * np.einsum("g, rg, Atrg -> At", nch.kerh.fg, nch.grdh.rho_1, nch.grdh.A_rho_2)
         )
@@ -95,8 +93,6 @@ class NCGGAEngine:
             scfh.get_S_2_mo()
         if scfh.H_2_ao is None:
             scfh.get_H_2_ao()
-        if scfh.eri2_ao is None:
-            scfh.get_eri2_ao()
         if nch.F_1_mo is None:
             nch.F_1_mo = scfh.C.T @ nch.scf_hess.make_h1(mo_coeff=scfh.C, mo_occ=scfh.mo_occ) @ scfh.C
 
@@ -162,8 +158,7 @@ class NCGGAEngine:
 
         E_SS_HF_contrib = (
             + np.einsum("ABtsuv, uv -> ABts", scfh.H_2_ao, D)
-            + 0.5 * np.einsum("ABtsuvkl, uv, kl -> ABts", scfh.eri2_ao, D, D)
-            - 0.25 * nch.cx * np.einsum("ABtsukvl, uv, kl -> ABts", scfh.eri2_ao, D, D)
+            + 0.5 * np.einsum("ABtsuv, uv -> ABts", scfh.get_F_2_ao_JKcontrib_(cx=nch.cx), D)
         )
 
         E_SS = E_SS_GGA_contrib1 + E_SS_GGA_contrib2 + E_SS_GGA_contrib3 + E_SS_HF_contrib

@@ -3,7 +3,7 @@ import pyscf.scf.cphf
 from pyscf.scf import _vhf
 import numpy as np
 from functools import partial
-import os
+import os, warnings
 
 MAXMEM = int(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -45,8 +45,6 @@ class HFHelper:
         self.F_0_mo = None
         self.H_0_ao = None
         self.H_0_mo = None
-        self.eri0_ao = None
-        self.eri0_mo = None
         # From gradient and hessian calculation
         self.H_1_ao = None
         self.H_1_mo = None
@@ -54,16 +52,12 @@ class HFHelper:
         self.S_1_mo = None
         self.F_1_ao = None
         self.F_1_mo = None
-        self.eri1_ao = None
-        self.eri1_mo = None
         self.H_2_ao = None
         self.H_2_mo = None
         self.S_2_ao = None
         self.S_2_mo = None
         self.F_2_ao = None
         self.F_2_mo = None
-        self.eri2_ao = None
-        self.eri2_mo = None
         self.B_1 = None
         self.U_1 = None
         self.U_1_vo = None
@@ -71,6 +65,13 @@ class HFHelper:
         self.Xi_2 = None
         self.B_2_vo = None
         self.U_2_vo = None
+        # ERI
+        self._eri0_ao = None
+        self._eri0_mo = None
+        self._eri1_ao = None
+        self._eri1_mo = None
+        self._eri2_ao = None
+        self._eri2_mo = None
 
         # Initializer
         self.initialization_pyscf()
@@ -110,9 +111,23 @@ class HFHelper:
         self.F_0_mo = self.C.T @ self.F_0_ao @ self.C
         self.H_0_ao = self.scf_eng.get_hcore()
         self.H_0_mo = self.C.T @ self.H_0_ao @ self.C
-        self.eri0_ao = self.mol.intor("int2e")
-        self.eri0_mo = np.einsum("uvkl, up, vq, kr, ls -> pqrs", self.eri0_ao, self.C, self.C, self.C, self.C)
+        # self.eri0_ao = self.mol.intor("int2e")
+        # self.eri0_mo = np.einsum("uvkl, up, vq, kr, ls -> pqrs", self.eri0_ao, self.C, self.C, self.C, self.C)
         return
+
+    @property
+    def eri0_ao(self):
+        warnings.warn("eri0_ao: ERI should not be stored in memory! Consider J/K engines!")
+        if self._eri0_ao is None:
+            self._eri0_ao = self.mol.intor("int2e")
+        return self._eri0_ao
+
+    @property
+    def eri0_mo(self):
+        warnings.warn("eri0_mo: ERI AO -> MO is quite expensive!")
+        if self._eri0_mo is None:
+            self._eri0_mo = np.einsum("uvkl, up, vq, kr, ls -> pqrs", self.eri0_ao, self.C, self.C, self.C, self.C)
+        return self._eri0_mo
 
     def mol_slice(self, atm_id):
         _, _, p0, p1 = self.mol.aoslice_by_atom()[atm_id]
@@ -171,8 +186,6 @@ class HFHelper:
 
     def Ax1_Core_use_eri1_ao(self, si, sj, sk, sl):
         C = self.C
-        if self.eri1_ao is None:
-            self.get_eri1_ao()
 
         def fx(mo1):
             dm1 = C[:, sk] @ mo1 @ C[:, sl].T
@@ -321,25 +334,29 @@ class HFHelper:
         self.S_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.S_1_ao, self.C, self.C)
         return self.S_1_mo
 
-    def get_eri1_ao(self):
-        nao = self.nao
-        natm = self.natm
-        int2e_ip1 = self.mol.intor("int2e_ip1")
-        eri1_ao = np.zeros((natm, 3, nao, nao, nao, nao))
-        for A in range(natm):
-            sA = self.mol_slice(A)
-            eri1_ao[A, :, sA, :, :, :] -= int2e_ip1[:, sA]
-            eri1_ao[A, :, :, sA, :, :] -= int2e_ip1[:, sA].transpose(0, 2, 1, 3, 4)
-            eri1_ao[A, :, :, :, sA, :] -= int2e_ip1[:, sA].transpose(0, 3, 4, 1, 2)
-            eri1_ao[A, :, :, :, :, sA] -= int2e_ip1[:, sA].transpose(0, 3, 4, 2, 1)
-        self.eri1_ao = eri1_ao
-        return self.eri1_ao
+    @property
+    def eri1_ao(self):
+        warnings.warn("eri1_ao: 4-idx tensor ERI should be not used!", FutureWarning)
+        if self._eri1_ao is None:
+            nao = self.nao
+            natm = self.natm
+            int2e_ip1 = self.mol.intor("int2e_ip1")
+            eri1_ao = np.zeros((natm, 3, nao, nao, nao, nao))
+            for A in range(natm):
+                sA = self.mol_slice(A)
+                eri1_ao[A, :, sA, :, :, :] -= int2e_ip1[:, sA]
+                eri1_ao[A, :, :, sA, :, :] -= int2e_ip1[:, sA].transpose(0, 2, 1, 3, 4)
+                eri1_ao[A, :, :, :, sA, :] -= int2e_ip1[:, sA].transpose(0, 3, 4, 1, 2)
+                eri1_ao[A, :, :, :, :, sA] -= int2e_ip1[:, sA].transpose(0, 3, 4, 2, 1)
+            self._eri1_ao = eri1_ao
+        return self._eri1_ao
 
-    def get_eri1_mo(self):
-        if self.eri1_ao is None:
-            self.get_eri1_ao()
-        self.eri1_mo = np.einsum("Atuvkl, up, vq, kr, ls -> Atpqrs", self.eri1_ao, self.C, self.C, self.C, self.C)
-        return self.eri1_mo
+    @property
+    def eri1_mo(self):
+        warnings.warn("eri1_mo: 4-idx tensor ERI should be not used!", FutureWarning)
+        if self._eri1_mo is None:
+            self._eri1_mo = np.einsum("Atuvkl, up, vq, kr, ls -> Atpqrs", self.eri1_ao, self.C, self.C, self.C, self.C)
+        return self._eri1_mo
 
     def get_H_2_ao(self):
         self.H_2_ao = np.array(
@@ -374,54 +391,58 @@ class HFHelper:
         self.S_2_mo = np.einsum("ABtsuv, up, vq -> ABtspq", self.S_2_ao, self.C, self.C)
         return self.S_2_mo
 
-    def get_eri2_ao(self):
-        natm = self.natm
-        nao = self.nao
-        mol_slice = self.mol_slice
+    @property
+    def eri2_ao(self):
+        warnings.warn("eri2_ao: 4-idx tensor ERI should be not used!", FutureWarning)
+        if self._eri2_ao is None:
+            natm = self.natm
+            nao = self.nao
+            mol_slice = self.mol_slice
 
-        int2e_ipip1 = self.mol.intor("int2e_ipip1")
-        int2e_ipvip1 = self.mol.intor("int2e_ipvip1")
-        int2e_ip1ip2 = self.mol.intor("int2e_ip1ip2")
+            int2e_ipip1 = self.mol.intor("int2e_ipip1")
+            int2e_ipvip1 = self.mol.intor("int2e_ipvip1")
+            int2e_ip1ip2 = self.mol.intor("int2e_ip1ip2")
 
-        def get_eri2(A, B):
-            sA, sB = mol_slice(A), mol_slice(B)
-            eri2 = np.zeros((9, nao, nao, nao, nao))
+            def get_eri2(A, B):
+                sA, sB = mol_slice(A), mol_slice(B)
+                eri2 = np.zeros((9, nao, nao, nao, nao))
 
-            if A == B:
-                eri2[:, sA, :, :, :] += int2e_ipip1[:, sA]
-                eri2[:, :, sA, :, :] += int2e_ipip1[:, sA].transpose(0, 2, 1, 3, 4)
-                eri2[:, :, :, sA, :] += int2e_ipip1[:, sA].transpose(0, 3, 4, 1, 2)
-                eri2[:, :, :, :, sA] += int2e_ipip1[:, sA].transpose(0, 3, 4, 2, 1)
-            eri2[:, sA, sB, :, :] += int2e_ipvip1[:, sA, sB]
-            eri2[:, sB, sA, :, :] += np.einsum("Tijkl -> Tjikl", int2e_ipvip1[:, sA, sB])
-            eri2[:, :, :, sA, sB] += np.einsum("Tijkl -> Tklij", int2e_ipvip1[:, sA, sB])
-            eri2[:, :, :, sB, sA] += np.einsum("Tijkl -> Tklji", int2e_ipvip1[:, sA, sB])
-            eri2[:, sA, :, sB, :] += int2e_ip1ip2[:, sA, :, sB]
-            eri2[:, sB, :, sA, :] += np.einsum("Tijkl -> Tklij", int2e_ip1ip2[:, sA, :, sB])
-            eri2[:, sA, :, :, sB] += np.einsum("Tijkl -> Tijlk", int2e_ip1ip2[:, sA, :, sB])
-            eri2[:, sB, :, :, sA] += np.einsum("Tijkl -> Tklji", int2e_ip1ip2[:, sA, :, sB])
-            eri2[:, :, sA, sB, :] += np.einsum("Tijkl -> Tjikl", int2e_ip1ip2[:, sA, :, sB])
-            eri2[:, :, sB, sA, :] += np.einsum("Tijkl -> Tlkij", int2e_ip1ip2[:, sA, :, sB])
-            eri2[:, :, sA, :, sB] += np.einsum("Tijkl -> Tjilk", int2e_ip1ip2[:, sA, :, sB])
-            eri2[:, :, sB, :, sA] += np.einsum("Tijkl -> Tlkji", int2e_ip1ip2[:, sA, :, sB])
+                if A == B:
+                    eri2[:, sA, :, :, :] += int2e_ipip1[:, sA]
+                    eri2[:, :, sA, :, :] += int2e_ipip1[:, sA].transpose(0, 2, 1, 3, 4)
+                    eri2[:, :, :, sA, :] += int2e_ipip1[:, sA].transpose(0, 3, 4, 1, 2)
+                    eri2[:, :, :, :, sA] += int2e_ipip1[:, sA].transpose(0, 3, 4, 2, 1)
+                eri2[:, sA, sB, :, :] += int2e_ipvip1[:, sA, sB]
+                eri2[:, sB, sA, :, :] += np.einsum("Tijkl -> Tjikl", int2e_ipvip1[:, sA, sB])
+                eri2[:, :, :, sA, sB] += np.einsum("Tijkl -> Tklij", int2e_ipvip1[:, sA, sB])
+                eri2[:, :, :, sB, sA] += np.einsum("Tijkl -> Tklji", int2e_ipvip1[:, sA, sB])
+                eri2[:, sA, :, sB, :] += int2e_ip1ip2[:, sA, :, sB]
+                eri2[:, sB, :, sA, :] += np.einsum("Tijkl -> Tklij", int2e_ip1ip2[:, sA, :, sB])
+                eri2[:, sA, :, :, sB] += np.einsum("Tijkl -> Tijlk", int2e_ip1ip2[:, sA, :, sB])
+                eri2[:, sB, :, :, sA] += np.einsum("Tijkl -> Tklji", int2e_ip1ip2[:, sA, :, sB])
+                eri2[:, :, sA, sB, :] += np.einsum("Tijkl -> Tjikl", int2e_ip1ip2[:, sA, :, sB])
+                eri2[:, :, sB, sA, :] += np.einsum("Tijkl -> Tlkij", int2e_ip1ip2[:, sA, :, sB])
+                eri2[:, :, sA, :, sB] += np.einsum("Tijkl -> Tjilk", int2e_ip1ip2[:, sA, :, sB])
+                eri2[:, :, sB, :, sA] += np.einsum("Tijkl -> Tlkji", int2e_ip1ip2[:, sA, :, sB])
 
-            return eri2.reshape(3, 3, nao, nao, nao, nao)
+                return eri2.reshape(3, 3, nao, nao, nao, nao)
 
-        eri2_ao = [[get_eri2(A, B) for B in range(natm)] for A in range(natm)]
-        self.eri2_ao = eri2_ao
-        return self.eri2_ao
+            eri2_ao = [[get_eri2(A, B) for B in range(natm)] for A in range(natm)]
+            self._eri2_ao = eri2_ao
+        return self._eri2_ao
 
-    def get_eri2_mo(self):
-        if self.eri2_ao is None:
-            self.get_eri2_ao()
-        self.eri2_mo = np.einsum("ABTSuvkl, up, vq, kr, ls -> ABTSpqrs", self.eri2_ao, self.C, self.C, self.C, self.C)
-        return self.eri2_mo
+    @property
+    def eri2_mo(self):
+        warnings.warn("eri2_mo: 4-idx tensor ERI should be not used!", FutureWarning)
+        if self._eri2_mo is None:
+            self._eri2_mo = np.einsum("ABTSuvkl, up, vq, kr, ls -> ABTSpqrs", self.eri2_ao, self.C, self.C, self.C, self.C)
+        return self._eri2_mo
 
-    def get_F_2_ao(self):
+    def get_F_2_ao_byeri2(self):
         if self.H_2_ao is None:
             self.get_H_2_ao()
         if self.eri2_ao is None:
-            self.get_eri2_ao()
+            self.eri2_ao()
         self.F_2_ao = (
                 self.H_2_ao
                 + np.einsum("ABtsuvkl, kl -> ABtsuv", self.eri2_ao, self.D)
@@ -429,23 +450,162 @@ class HFHelper:
         )
         return self.F_2_ao
 
-    def get_F_2_ao_unfinished(self):
-        if self.H_2_ao is None:
-            self.get_H_2_ao()
-        D = self.D
+    def get_F_2_ao_JKcontrib_(self, cx=1):
+
         mol = self.mol
         natm = self.natm
+        D = self.D
         nao = self.nao
 
-        F_2_ao = self.H_2_ao.copy()
+        def reshape_only_first_dimension(mats_, d1=3, d2=3):
+            rmats = []
+            if isinstance(mats_, np.ndarray):
+                mats = [mats_]
+            else:
+                mats = mats_
+            for mat in mats:
+                s = list(mat.shape)
+                s[0] = d2
+                s.insert(0, d1)
+                mat.shape = tuple(s)
 
-        # Tricks in F_2_ao generation on eri2 part
-        # int2e_ipip1: contrib1 (j_1), contrib5 (k_1)
-        # int2e_ipvip1: contrib2 (j_2), contrib6 (k_2)
-        # int2e_ip1ip2: contrib3,4 (j_3), contrib7 (k_3)
+        JKcontrib = np.zeros((natm, natm, 3, 3, nao, nao))
+        kprefix = - cx * 0.5
+        hbas = (0, mol.nbas)
 
+        # Atom insensitive contractions
+        j_1 = _vhf.direct_mapdm(
+            mol._add_suffix('int2e_ipip1'), "s2kl",
+            ("lk->s1ij"),
+            D, 9,
+            mol._atm, mol._bas, mol._env
+        )
+        j_2 = _vhf.direct_mapdm(
+            mol._add_suffix('int2e_ipvip1'), "s2kl",
+            ("lk->s1ij"),
+            D, 9,
+            mol._atm, mol._bas, mol._env
+        )
+        k_1 = _vhf.direct_mapdm(
+            mol._add_suffix('int2e_ipip1'), "s2kl",
+            ("jk->s1il"),
+            D, 9,
+            mol._atm, mol._bas, mol._env
+        )
+        k_3 = _vhf.direct_mapdm(
+            mol._add_suffix('int2e_ip1ip2'), "s1",
+            ("lj->s1ki"),
+            D, 9,
+            mol._atm, mol._bas, mol._env
+        )
 
+        reshape_only_first_dimension((j_1, j_2, k_1, k_3))
 
+        # One atom sensitive contractions, multiple usage
+        j_3A, k_1A, k_2A, k_3A = [], [], [], []
+        for A in range(natm):
+            shl0A, shl1A, p0A, p1A = mol.aoslice_by_atom()[A]
+            sA, hA = slice(p0A, p1A), (shl0A, shl1A)
+
+            j_3A.append(_vhf.direct_mapdm(
+                mol._add_suffix('int2e_ip1ip2'), "s1",
+                ("lk->s1ij"),
+                D[:, sA], 9,
+                mol._atm, mol._bas, mol._env,
+                shls_slice=(hbas + hbas + hA + hbas)
+            ))
+            k_1A.append(_vhf.direct_mapdm(
+                mol._add_suffix('int2e_ipip1'), "s2kl",
+                ("li->s1kj"),
+                D[:, sA], 9,
+                mol._atm, mol._bas, mol._env,
+                shls_slice=(hA + hbas * 3)
+            ))
+            k_2A.append(_vhf.direct_mapdm(
+                mol._add_suffix('int2e_ipvip1'), "s2kl",
+                ("jk->s1il"),
+                D[sA], 9,
+                mol._atm, mol._bas, mol._env,
+                shls_slice=(hbas + hA + hbas + hbas)
+            ))
+            k_3A.append(_vhf.direct_mapdm(
+                mol._add_suffix('int2e_ip1ip2'), "s1",
+                ("jk->s1il"),
+                D[:, sA], 9,
+                mol._atm, mol._bas, mol._env,
+                shls_slice=(hbas + hbas + hA + hbas)
+            ))
+        for jkA in j_3A, k_1A, k_2A, k_3A:
+            reshape_only_first_dimension(jkA)
+
+        for A in range(natm):
+            shl0A, shl1A, p0A, p1A = mol.aoslice_by_atom()[A]
+            sA, hA = slice(p0A, p1A), (shl0A, shl1A)
+
+            # One atom sensitive contractions, One usage only
+            j_1A = _vhf.direct_mapdm(
+                mol._add_suffix('int2e_ipip1'), "s2kl",
+                ("ji->s1kl"),
+                D[:, sA], 9,
+                mol._atm, mol._bas, mol._env,
+                shls_slice=(hA + (0, mol.nbas) * 3)
+            )
+            reshape_only_first_dimension((j_1A,))
+
+            # A-A manipulation
+            JKcontrib[A, A, :, :, sA, :] += j_1[:, :, sA, :]
+            JKcontrib[A, A] += j_1A
+            JKcontrib[A, A, :, :, sA] += kprefix * k_1[:, :, sA]
+            JKcontrib[A, A] += kprefix * k_1A[A]
+
+            for B in range(A + 1):
+                shl0B, shl1B, p0B, p1B = mol.aoslice_by_atom()[B]
+                sB, hB = slice(p0B, p1B), (shl0B, shl1B)
+
+                # Two atom sensitive contractions
+                j_2AB = _vhf.direct_mapdm(
+                    mol._add_suffix('int2e_ipvip1'), "s2kl",
+                    ("ji->s1kl"),
+                    D[sB, sA], 9,
+                    mol._atm, mol._bas, mol._env,
+                    shls_slice=(hA + hB + (0, mol.nbas) * 2)
+                )
+                k_3AB = _vhf.direct_mapdm(
+                    mol._add_suffix('int2e_ip1ip2'), "s1",
+                    ("ki->s1jl"),
+                    D[sB, sA], 9,
+                    mol._atm, mol._bas, mol._env,
+                    shls_slice=(hA + (0, mol.nbas) + hB + (0, mol.nbas))
+                )
+                reshape_only_first_dimension((j_2AB, k_3AB))
+
+                # A-B manipulation
+                JKcontrib[A, B, :, :, sA, sB] += j_2[:, :, sA, sB]
+                JKcontrib[A, B] += j_2AB
+                JKcontrib[A, B, :, :, sA] += 2 * j_3A[B][:, :, sA]
+                JKcontrib[B, A, :, :, sB] += 2 * j_3A[A][:, :, sB]
+                JKcontrib[A, B, :, :, sA] += kprefix * k_2A[B][:, :, sA]
+                JKcontrib[B, A, :, :, sB] += kprefix * k_2A[A][:, :, sB]
+                JKcontrib[A, B, :, :, sA] += kprefix * k_3A[B][:, :, sA]
+                JKcontrib[B, A, :, :, sB] += kprefix * k_3A[A][:, :, sB]
+                JKcontrib[A, B, :, :, sA, sB] += kprefix * k_3[:, :, sB, sA].swapaxes(-1, -2)
+                JKcontrib[A, B] += kprefix * k_3AB
+
+            # A == B finalize
+
+            JKcontrib[A, A] /= 2
+
+        # Symmetry Finalize
+        JKcontrib += JKcontrib.transpose((0, 1, 2, 3, 5, 4))
+        JKcontrib += JKcontrib.transpose((1, 0, 3, 2, 4, 5))
+
+        return JKcontrib
+
+    def get_F_2_ao(self):
+        if self.H_2_ao is None:
+            self.get_H_2_ao()
+        self.F_2_ao = self.H_2_ao + self.get_F_2_ao_JKcontrib_()
+        return self.F_2_ao
 
     def get_F_2_mo(self):
         if self.F_2_ao is None:
@@ -609,13 +769,9 @@ class HFHelper:
         self.get_H_1_mo()
         self.get_S_1_mo()
         self.get_F_1_mo()
-        self.get_eri1_ao()
-        # self.get_eri1_mo()
         self.get_H_2_mo()
         self.get_S_2_mo()
         self.get_F_2_mo()
-        self.get_eri2_ao()
-        # self.get_eri2_mo()
         self.get_B_1()
         self.get_U_1()
         self.get_Xi_2()

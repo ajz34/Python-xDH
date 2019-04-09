@@ -54,8 +54,6 @@ class GGAHelper(HFHelper):
         C = self.C
         if self.kerh is None:
             self.get_kerh()
-        if self.eri0_ao is None:
-            self.eri0_ao = self.mol.intor("int2e")
         grdh = self.grdh
         kerh = self.kerh
 
@@ -82,8 +80,8 @@ class GGAHelper(HFHelper):
                     + 4 * np.einsum("rg, g -> rg", rho_X_1, kerh.fg)
                 )
                 ax_ao = (
-                    + 1 * np.einsum("uvkl, kl -> uv", self.eri0_ao, dmX)
-                    - 0.5 * self.cx * np.einsum("ukvl, kl -> uv", self.eri0_ao, dmX)
+                    + 1 * self.scf_eng.get_j(dm=dmX)
+                    - 0.5 * self.cx * self.scf_eng.get_k(dm=dmX)
                     + np.einsum("rg, rgu, gv -> uv", tmp_M, grdh.ao[:4], grdh.ao_0)
                 )
                 ax_ao += ax_ao.T
