@@ -1,5 +1,6 @@
-import sys
+import sys, os
 sys.path.append('../../')
+os.environ["MAXMEM"] = "1.5"
 
 from hf_helper import HFHelper
 from gga_helper import GGAHelper

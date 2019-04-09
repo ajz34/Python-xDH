@@ -32,7 +32,7 @@ class NumericDiff:
             Energy derivate and Gradient derivative should be given 0.
             ERI derivative should be given 4.
             If not given, program would check this value.
-        interval : int, optional, default: 3e-4
+        interval : float, optional, default: 3e-4
             Difference interval. Not always better when smaller.
         deriv : {1, 2}, optional, default : 1
             Derivative order. For example:

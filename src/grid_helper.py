@@ -4,7 +4,7 @@ import numpy as np
 from functools import partial
 import os
 
-MAXMEM = int(os.getenv("MAXMEM", 2))
+MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
