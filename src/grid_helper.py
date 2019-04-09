@@ -1,8 +1,9 @@
 from pyscf import dft
 import pyscf.dft.numint
 import numpy as np
+from grid_iterator import GridIterator
 from functools import partial
-import os
+import os, warnings
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -12,6 +13,7 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 class GridHelper:
 
     def __init__(self, mol, grids, D):
+        warnings.warn("GridHelper is considered memory consuming!", FutureWarning)
 
         # Initialization Parameters
         self.mol = mol  # type: pyscf.gto.Mole
@@ -84,15 +86,15 @@ class GridHelper:
 
 class KernelHelper:
 
-    def __init__(self, gh, xc):
+    def __init__(self, gh, xc, deriv=2):
 
         # Initialization Parameters
-        self.gh = gh  # type: GridHelper
+        self.gh = gh  # type: GridHelper or GridIterator
         self.xc = xc  # type: str
 
         # Calculation
         cx = gh.ni.hybrid_coeff(xc)
-        grid_exc, grid_vxc, grid_fxc = gh.ni.eval_xc(xc, gh.rho_01, deriv=2)[:3]
+        grid_exc, grid_vxc, grid_fxc = gh.ni.eval_xc(xc, gh.rho_01, deriv=deriv)[:3]
         grid_fr, grid_fg = grid_vxc[0:2]
         grid_frr, grid_frg, grid_fgg = grid_fxc[0:3]
         grid_exc *= gh.weight

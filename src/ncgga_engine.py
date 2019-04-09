@@ -1,5 +1,7 @@
 from hf_helper import HFHelper
 from gga_helper import GGAHelper
+from grid_iterator import GridIterator
+from grid_helper import KernelHelper
 import numpy as np
 from functools import partial
 from pyscf import scf
@@ -9,6 +11,7 @@ import os
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
+
 
 class NCGGAEngine:
 
@@ -44,17 +47,15 @@ class NCGGAEngine:
         so = scfh.so
         natm = scfh.natm
 
-        if nch.kerh is None:
-            nch.get_kerh()
-        if nch.F_0_mo is None:
-            nch.F_0_ao = nch.scf_eng.get_fock(dm=D)
-            nch.F_0_mo = nch.C.T @ nch.F_0_ao @ nch.C
+        E_S = np.einsum("Atuv, uv -> At", scfh.H_1_ao, D)
+        grdit = GridIterator(scfh.mol, nch.grids, D, deriv=2)
+        for grdh in grdit:
+            kerh = KernelHelper(grdh, nch.xc)
+            E_S += (
+                + np.einsum("g, Atg -> At", kerh.fr, grdh.A_rho_1)
+                + 2 * np.einsum("g, rg, Atrg -> At", kerh.fg, grdh.rho_1, grdh.A_rho_2)
+            )
 
-        E_S = (
-            + np.einsum("Atuv, uv -> At", scfh.H_1_ao, D)
-            + np.einsum("g, Atg -> At", nch.kerh.fr, nch.grdh.A_rho_1)
-            + 2 * np.einsum("g, rg, Atrg -> At", nch.kerh.fg, nch.grdh.rho_1, nch.grdh.A_rho_2)
-        )
         # From memory consumption point, we use higher subroutines in PySCF to generate ERI contribution
         jk_1 = (
             + 2 * scfh.scf_grad.get_j(dm=D)
@@ -74,19 +75,7 @@ class NCGGAEngine:
         self.E_1 = E_1
         return self.E_1
 
-    def get_E_2_prepare(self):
-
-        scfh = self.scfh
-        nch = self.nch
-
-        if nch.kerh is None:
-            nch.get_kerh()
-
-        return
-
     def get_E_2(self):
-
-        self.get_E_2_prepare()
 
         if self.E_SS is None:
             self.get_E_SS()
@@ -103,45 +92,53 @@ class NCGGAEngine:
 
         scfh = self.scfh
         nch = self.nch
-        grdh = nch.grdh
-        kerh = nch.kerh
         mol_slice = scfh.mol_slice
         natm = scfh.natm
         D = scfh.D
 
-        tmp_tensor_1 = (
-            + 2 * np.einsum("g, Tgu, gv -> Tuv", kerh.fr, grdh.ao_2T, grdh.ao_0)
-            + 4 * np.einsum("g, rg, rTgu, gv -> Tuv", kerh.fg, grdh.rho_1, grdh.ao_3T, grdh.ao_0)
-            + 4 * np.einsum("g, rg, Tgu, rgv -> Tuv", kerh.fg, grdh.rho_1, grdh.ao_2T, grdh.ao_1)
-        )
-        XX, XY, XZ, YY, YZ, ZZ = range(6)
+        # GGA Contribution
         E_SS_GGA_contrib1 = np.zeros((natm, natm, 3, 3))
-        for A in range(natm):
-            sA = mol_slice(A)
-            E_SS_GGA_contrib1[A, A] = np.einsum("Tuv, uv -> T", tmp_tensor_1[:, sA], D[sA])[
-                [XX, XY, XZ, XY, YY, YZ, XZ, YZ, ZZ]].reshape(3, 3)
+        E_SS_GGA_contrib2 = np.zeros((natm, natm, 3, 3))
+        E_SS_GGA_contrib3 = np.zeros((natm, natm, 3, 3))
+        grdit = GridIterator(scfh.mol, nch.grids, D, deriv=3)
+        for grdh in grdit:
+            kerh = KernelHelper(grdh, nch.xc)
 
-        tmp_tensor_2 = 4 * np.einsum("g, rg, trgu, sgv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_2, grdh.ao_1)
-        tmp_tensor_2 += tmp_tensor_2.transpose((1, 0, 3, 2))
-        tmp_tensor_2 += 2 * np.einsum("g, tgu, sgv -> tsuv", kerh.fr, grdh.ao_1, grdh.ao_1)
-        E_SS_GGA_contrib2 = np.empty((natm, natm, 3, 3))
-        for A in range(natm):
-            sA = mol_slice(A)
-            for B in range(A + 1):
-                sB = mol_slice(B)
-                E_SS_GGA_contrib2[A, B] = np.einsum("tsuv, uv -> ts", tmp_tensor_2[:, :, sA, sB], D[sA, sB])
-                if A != B:
-                    E_SS_GGA_contrib2[B, A] = E_SS_GGA_contrib2[A, B].T
+            tmp_tensor_1 = (
+                + 2 * np.einsum("g, Tgu, gv -> Tuv", kerh.fr, grdh.ao_2T, grdh.ao_0)
+                + 4 * np.einsum("g, rg, rTgu, gv -> Tuv", kerh.fg, grdh.rho_1, grdh.ao_3T, grdh.ao_0)
+                + 4 * np.einsum("g, rg, Tgu, rgv -> Tuv", kerh.fg, grdh.rho_1, grdh.ao_2T, grdh.ao_1)
+            )
+            XX, XY, XZ, YY, YZ, ZZ = range(6)
+            for A in range(natm):
+                sA = mol_slice(A)
+                E_SS_GGA_contrib1[A, A] += np.einsum("Tuv, uv -> T", tmp_tensor_1[:, sA], D[sA])[
+                    [XX, XY, XZ, XY, YY, YZ, XZ, YZ, ZZ]].reshape(3, 3)
 
-        E_SS_GGA_contrib3 = (
-            + np.einsum("g, Atg, Bsg -> ABts", kerh.frr, grdh.A_rho_1, grdh.A_rho_1)
-            + 2 * np.einsum("g, wg, Atwg, Bsg -> ABts", kerh.frg, grdh.rho_1, grdh.A_rho_2, grdh.A_rho_1)
-            + 2 * np.einsum("g, Atg, rg, Bsrg -> ABts", kerh.frg, grdh.A_rho_1, grdh.rho_1, grdh.A_rho_2)
-            + 4 * np.einsum("g, wg, Atwg, rg, Bsrg -> ABts", kerh.fgg, grdh.rho_1, grdh.A_rho_2, grdh.rho_1,
-                            grdh.A_rho_2)
-            + 2 * np.einsum("g, Atrg, Bsrg -> ABts", kerh.fg, grdh.A_rho_2, grdh.A_rho_2)
-        )
+            tmp_tensor_2 = 4 * np.einsum("g, rg, trgu, sgv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_2, grdh.ao_1)
+            tmp_tensor_2 += tmp_tensor_2.transpose((1, 0, 3, 2))
+            tmp_tensor_2 += 2 * np.einsum("g, tgu, sgv -> tsuv", kerh.fr, grdh.ao_1, grdh.ao_1)
+            E_SS_GGA_contrib2_inbatch = np.zeros((natm, natm, 3, 3))
+            for A in range(natm):
+                sA = mol_slice(A)
+                for B in range(A + 1):
+                    sB = mol_slice(B)
+                    E_SS_GGA_contrib2_inbatch[A, B] += np.einsum("tsuv, uv -> ts",
+                                                                 tmp_tensor_2[:, :, sA, sB], D[sA, sB])
+                    if A != B:
+                        E_SS_GGA_contrib2_inbatch[B, A] += E_SS_GGA_contrib2_inbatch[A, B].T
+            E_SS_GGA_contrib2 += E_SS_GGA_contrib2_inbatch
 
+            E_SS_GGA_contrib3 += (
+                + np.einsum("g, Atg, Bsg -> ABts", kerh.frr, grdh.A_rho_1, grdh.A_rho_1)
+                + 2 * np.einsum("g, wg, Atwg, Bsg -> ABts", kerh.frg, grdh.rho_1, grdh.A_rho_2, grdh.A_rho_1)
+                + 2 * np.einsum("g, Atg, rg, Bsrg -> ABts", kerh.frg, grdh.A_rho_1, grdh.rho_1, grdh.A_rho_2)
+                + 4 * np.einsum("g, wg, Atwg, rg, Bsrg -> ABts", kerh.fgg, grdh.rho_1, grdh.A_rho_2, grdh.rho_1,
+                                grdh.A_rho_2)
+                + 2 * np.einsum("g, Atrg, Bsrg -> ABts", kerh.fg, grdh.A_rho_2, grdh.A_rho_2)
+            )
+
+        # HF Contribution
         E_SS_HF_contrib = (
             + np.einsum("ABtsuv, uv -> ABts", scfh.H_2_ao, D)
             + 0.5 * np.einsum("ABtsuv, uv -> ABts", scfh.get_F_2_ao_JKcontrib_(cx=nch.cx), D)

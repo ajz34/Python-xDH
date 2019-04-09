@@ -41,10 +41,10 @@ class HFHelper:
         self.Co = None
         self.Cv = None
         self.D = None
-        self.F_0_ao = None
-        self.F_0_mo = None
-        self.H_0_ao = None
-        self.H_0_mo = None
+        self._F_0_ao = None
+        self._F_0_mo = None
+        self._H_0_ao = None
+        self._H_0_mo = None
         # From gradient and hessian calculation
         self._H_1_ao = None
         self._H_1_mo = None
@@ -107,13 +107,35 @@ class HFHelper:
         self.Co = self.C[:, self.so]
         self.Cv = self.C[:, self.sv]
         self.D = self.scf_eng.make_rdm1()
-        self.F_0_ao = self.scf_eng.get_fock()
-        self.F_0_mo = self.C.T @ self.F_0_ao @ self.C
-        self.H_0_ao = self.scf_eng.get_hcore()
-        self.H_0_mo = self.C.T @ self.H_0_ao @ self.C
         # self.eri0_ao = self.mol.intor("int2e")
         # self.eri0_mo = np.einsum("uvkl, up, vq, kr, ls -> pqrs", self.eri0_ao, self.C, self.C, self.C, self.C)
         return
+
+    @property
+
+    @property
+    def H_0_ao(self):
+        if self._H_0_ao is None:
+            self._H_0_ao = self.scf_eng.get_hcore()
+        return self._H_0_ao
+
+    @property
+    def H_0_mo(self):
+        if self._H_0_mo is None:
+            self._H_0_mo = self.C.T @ self.H_0_ao @ self.C
+        return self._H_0_mo
+
+    @property
+    def F_0_ao(self):
+        if self._F_0_ao is None:
+            self._F_0_ao = self.scf_eng.get_fock(dm=self.D)
+        return self._F_0_ao
+
+    @property
+    def F_0_mo(self):
+        if self._F_0_mo is None:
+            self._F_0_mo = self.C.T @ self.F_0_ao @ self.C
+        return self._F_0_mo
 
     @property
     def eri0_ao(self):
