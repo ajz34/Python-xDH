@@ -69,10 +69,6 @@ if __name__ == "__main__":
     time0 = time.time()
     print(ncengine.E_1)
 
-    ncengine.get_E_2_prepare()
-    print("E_2 prepare          ", time.time() - time0)
-    time0 = time.time()
-
     ncengine.get_E_SS()
     print("E_SS time            ", time.time() - time0)
     time0 = time.time()
