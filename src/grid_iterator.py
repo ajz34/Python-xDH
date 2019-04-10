@@ -17,7 +17,7 @@ class GridIterator:
         self.grids = grids  # type: dft.Grids
         self.D = D
         self.ni = dft.numint.NumInt()
-        self.batch = self.ni.block_loop(mol, grids, mol.nao, deriv, memory)
+        self.batch = self.ni.block_loop(mol, grids, mol.nao, deriv, self.mol.max_memory)
 
         self._ao = None
         self._ngrid = None

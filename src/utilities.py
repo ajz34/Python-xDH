@@ -1,10 +1,11 @@
 import numpy as np
 from functools import wraps
 from time import time
-import os, inspect, gc
+import os, inspect, gc, partial
 
 
 LOGLEVEL = int(os.getenv("LOGLEVEL", 0))
+print = partial(print, flush=True)
 
 
 def val_from_fchk(key, file_path):

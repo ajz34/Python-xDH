@@ -27,7 +27,7 @@ class GridHelper:
         grid_weight = grids.weights
         grid_ao = np.empty((20, ngrid, nao))  # 20 at first dimension is related to 3rd derivative of orbital
         current_grid_count = 0
-        for ao, _, _, _ in ni.block_loop(mol, grids, nao, 3, 2000):
+        for ao, _, _, _ in ni.block_loop(mol, grids, nao, 3, self.mol.max_memory):
             grid_ao[:, current_grid_count:current_grid_count+ao.shape[1]] = ao
             current_grid_count += ao.shape[1]
         current_grid_count = None
