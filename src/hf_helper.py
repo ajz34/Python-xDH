@@ -87,8 +87,11 @@ class HFHelper:
         self.scf_eng = scf.RHF(self.mol)
         self.scf_eng.conv_tol = 1e-11
         self.scf_eng.conv_tol_grad = 1e-9
+        self.scf_eng.max_cycle = 100
         if self.init_scf:
             self.eng = self.scf_eng.kernel()
+            if not self.scf_eng.converged:
+                warnings.warn("SCF not converged!")
         self.scf_grad = grad.RHF(self.scf_eng)
         self.scf_hess = hessian.RHF(self.scf_eng)
         return
@@ -796,8 +799,8 @@ class HFHelper:
             self.e,
             self.scf_eng.mo_occ,
             B_1[:, :, sv, so].reshape(-1, self.nvir, self.nocc),
-            max_cycle=500,
-            tol=1e-40,
+            max_cycle=100,
+            tol=1e-15,
             hermi=False
         )[0]
         U_1_ai.shape = (self.natm, 3, self.nvir, self.nocc)
@@ -887,7 +890,7 @@ class HFHelper:
             self.e,
             self.scf_eng.mo_occ,
             self.B_2_vo.reshape(-1, self.nvir, self.nocc),
-            max_cycle=500,
+            max_cycle=100,
             tol=1e-15,
             hermi=False
         )[0]

@@ -30,12 +30,15 @@ class GGAHelper(HFHelper):
 
     def initialization_pyscf(self):
         self.scf_eng = scf.RKS(self.mol)
-        self.scf_eng.conv_tol = 1e-13
-        self.scf_eng.conv_tol_grad = 1e-13
+        self.scf_eng.conv_tol = 1e-11
+        self.scf_eng.conv_tol_grad = 1e-9
+        self.scf_eng.max_cycle = 100
         self.scf_eng.xc = self.xc
         self.scf_eng.grids = self.grids
         if self.init_scf:
             self.eng = self.scf_eng.kernel()
+            if not self.scf_eng.converged:
+                warnings.warn("SCF not converged!")
         self.scf_grad = grad.rks.Gradients(self.scf_eng)
         self.scf_hess = hessian.rks.Hessian(self.scf_eng)
         self.cx = dft.numint.NumInt().hybrid_coeff(self.xc)
