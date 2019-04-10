@@ -1,4 +1,10 @@
 import numpy as np
+from functools import wraps
+from time import time
+import os, inspect
+
+
+LOGLEVEL = int(os.getenv("LOGLEVEL", 0))
 
 
 def val_from_fchk(key, file_path):
@@ -25,3 +31,21 @@ def val_from_fchk(key, file_path):
     if len(vec) != expect_size:
         raise ValueError("Number of expected size is not consistent with read-in size!")
     return np.array(vec)
+
+
+def timing(f):
+    # Answer from https://codereview.stackexchange.com/a/169876
+    #             https://stackoverflow.com/a/17065634
+    # Should be only using in class functions
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        start = time()
+        result = f(*args, **kwargs)
+        end = time()
+        if LOGLEVEL >= 2:
+            stack = inspect.stack()
+            the_class = stack[1][0].f_locals["self"].__class__.__qualname__
+            the_method = stack[1][0].f_code.co_name
+            print(" {0:30s}, {1:50s} Elapsed time: {2:25.10f}".format(f.__qualname__, the_class + "." + the_method + "()", end-start))
+        return result
+    return wrapper

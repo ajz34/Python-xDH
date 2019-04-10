@@ -4,6 +4,8 @@ from pyscf.scf import _vhf
 import numpy as np
 from functools import partial
 import os, warnings
+from utilities import timing
+
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -112,8 +114,6 @@ class HFHelper:
         return
 
     @property
-
-    @property
     def H_0_ao(self):
         if self._H_0_ao is None:
             self._H_0_ao = self.scf_eng.get_hcore()
@@ -138,6 +138,7 @@ class HFHelper:
         return self._F_0_mo
 
     @property
+    @timing
     def eri0_ao(self):
         warnings.warn("eri0_ao: ERI should not be stored in memory! Consider J/K engines!")
         if self._eri0_ao is None:
@@ -145,6 +146,7 @@ class HFHelper:
         return self._eri0_ao
 
     @property
+    @timing
     def eri0_mo(self):
         warnings.warn("eri0_mo: ERI AO -> MO is quite expensive!")
         if self._eri0_mo is None:
@@ -155,6 +157,7 @@ class HFHelper:
         _, _, p0, p1 = self.mol.aoslice_by_atom()[atm_id]
         return slice(p0, p1)
 
+    @timing
     def Ax0_Core(self, si, sj, sk, sl, reshape=True):
         """
 
@@ -220,6 +223,7 @@ class HFHelper:
 
         return fx
 
+    @timing
     def Ax1_Core(self, si, sj, sk, sl):
         """
         Calculate Axt @ X.
@@ -363,6 +367,7 @@ class HFHelper:
         return self._S_1_mo
 
     @property
+    @timing
     def eri1_ao(self):
         warnings.warn("eri1_ao: 4-idx tensor ERI should be not used!", FutureWarning)
         if self._eri1_ao is None:
@@ -380,6 +385,7 @@ class HFHelper:
         return self._eri1_ao
 
     @property
+    @timing
     def eri1_mo(self):
         warnings.warn("eri1_mo: 4-idx tensor ERI should be not used!", FutureWarning)
         if self._eri1_mo is None:
@@ -424,6 +430,7 @@ class HFHelper:
         return self._S_2_mo
 
     @property
+    @timing
     def eri2_ao(self):
         warnings.warn("eri2_ao: 4-idx tensor ERI should be not used!", FutureWarning)
         if self._eri2_ao is None:
@@ -464,6 +471,7 @@ class HFHelper:
         return self._eri2_ao
 
     @property
+    @timing
     def eri2_mo(self):
         warnings.warn("eri2_mo: 4-idx tensor ERI should be not used!", FutureWarning)
         if self._eri2_mo is None:
@@ -673,6 +681,7 @@ class HFHelper:
             self._get_U_1(total_u=True)
         return self._U_1
 
+    @timing
     def _get_U_1(self, total_u=True):
         """
 
