@@ -5,9 +5,10 @@ import pyscf.dft.numint
 from hf_helper import HFHelper
 from grid_helper import GridHelper, KernelHelper
 from grid_iterator import GridIterator
+from utilities import timing, gccollect
 import numpy as np
 from functools import partial
-import os, warnings
+import os, warnings, gc
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -101,6 +102,8 @@ class GGAHelper(HFHelper):
 
         return fx
 
+    @timing
+    @gccollect
     def Ax0_Core(self, si, sj, sk, sl, reshape=True):
         C = self.C
         nao = self.mol.nao
@@ -138,6 +141,7 @@ class GGAHelper(HFHelper):
                     ax_ao[idx] += (
                         + np.einsum("rg, rgu, gv -> uv", tmp_M, grdh.ao[:4], grdh.ao_0)
                     )
+                gc.collect()
             ax_ao += ax_ao.swapaxes(-1, -2)
             r = C[:, si].T @ ax_ao @ C[:, sj]
 

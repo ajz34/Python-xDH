@@ -1,5 +1,9 @@
 from pyscf import gto, lib
 import numpy as np
+import os
+
+
+LOGLEVEL = int(os.getenv("LOGLEVEL", 0))
 
 
 # BOHR = 0.52917721092

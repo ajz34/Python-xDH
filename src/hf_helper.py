@@ -3,8 +3,8 @@ import pyscf.scf.cphf
 from pyscf.scf import _vhf
 import numpy as np
 from functools import partial
-import os, warnings
-from utilities import timing
+import os, warnings, gc
+from utilities import timing, gccollect
 
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
@@ -59,6 +59,8 @@ class HFHelper:
         self._S_2_ao = None
         self._S_2_mo = None
         self._F_2_ao = None
+        self._F_2_ao_Jcontrib = None
+        self._F_2_ao_Kcontrib = None
         self._F_2_mo = None
         self._B_1 = None
         self._U_1 = None
@@ -83,6 +85,7 @@ class HFHelper:
 
     # Utility functions
 
+    @gccollect
     def initialization_pyscf(self):
         self.scf_eng = scf.RHF(self.mol)
         self.scf_eng.conv_tol = 1e-11
@@ -243,6 +246,18 @@ class HFHelper:
         return self._eri2_mo
 
     @property
+    def F_2_ao_Jcontrib(self):
+        if self._F_2_ao_Jcontrib is None:
+            self._F_2_ao_Jcontrib, self._F_2_ao_Kcontrib = self._get_F_2_ao_JKcontrib()
+        return self._F_2_ao_Jcontrib
+
+    @property
+    def F_2_ao_Kcontrib(self):
+        if self._F_2_ao_Kcontrib is None:
+            self._F_2_ao_Jcontrib, self._F_2_ao_Kcontrib = self._get_F_2_ao_JKcontrib()
+        return self._F_2_ao_Kcontrib
+
+    @property
     def F_2_ao(self):
         if self._F_2_ao is None:
             self._F_2_ao = self._get_F_2_ao()
@@ -318,6 +333,7 @@ class HFHelper:
         return self.mol.intor("int2e")
 
     @timing
+    @gccollect
     def Ax0_Core(self, si, sj, sk, sl, reshape=True):
         """
 
@@ -385,6 +401,7 @@ class HFHelper:
         return fx
 
     @timing
+    @gccollect
     def Ax1_Core(self, si, sj, sk, sl):
         """
         Calculate Axt @ X.
@@ -483,6 +500,7 @@ class HFHelper:
         self.hess = self.scf_hess.kernel()
         return self.hess
 
+    @gccollect
     def _get_H_1_ao(self):
         return np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)])
 
@@ -490,6 +508,7 @@ class HFHelper:
         return np.einsum("Atuv, up, vq -> Atpq", self.H_1_ao, self.C, self.C)
 
     @timing
+    @gccollect
     def _get_F_1_ao(self):
         return self.scf_hess.make_h1(self.C, self.mo_occ)
 
@@ -530,6 +549,7 @@ class HFHelper:
         return np.einsum("Atuvkl, up, vq, kr, ls -> Atpqrs", self.eri1_ao, self.C, self.C, self.C, self.C)
 
     @timing
+    @gccollect
     def _get_H_2_ao(self):
         return np.array([[self.scf_hess.hcore_generator()(A, B) for B in range(self.natm)] for A in range(self.natm)])
 
@@ -537,6 +557,7 @@ class HFHelper:
         return np.einsum("ABtsuv, up, vq -> ABtspq", self.H_2_ao, self.C, self.C)
 
     @timing
+    @gccollect
     def _get_S_2_ao(self):
         int1e_ipovlpip = self.mol.intor("int1e_ipovlpip")
         int1e_ipipovlp = self.mol.intor("int1e_ipipovlp")
@@ -605,7 +626,7 @@ class HFHelper:
         return F_2_ao
 
     @timing
-    def get_F_2_ao_JKcontrib_(self, cx=1):
+    def _get_F_2_ao_JKcontrib(self):
 
         mol = self.mol
         natm = self.natm
@@ -624,8 +645,8 @@ class HFHelper:
                 s.insert(0, d1)
                 mat.shape = tuple(s)
 
-        JKcontrib = np.zeros((natm, natm, 3, 3, nao, nao))
-        kprefix = - cx * 0.5
+        Jcontrib = np.zeros((natm, natm, 3, 3, nao, nao))
+        Kcontrib = np.zeros((natm, natm, 3, 3, nao, nao))
         hbas = (0, mol.nbas)
 
         # Atom insensitive contractions
@@ -708,10 +729,10 @@ class HFHelper:
             reshape_only_first_dimension((j_1A,))
 
             # A-A manipulation
-            JKcontrib[A, A, :, :, sA, :] += j_1[:, :, sA, :]
-            JKcontrib[A, A] += j_1A
-            JKcontrib[A, A, :, :, sA] += kprefix * k_1[:, :, sA]
-            JKcontrib[A, A] += kprefix * k_1A[A]
+            Jcontrib[A, A, :, :, sA, :] += j_1[:, :, sA, :]
+            Jcontrib[A, A] += j_1A
+            Kcontrib[A, A, :, :, sA] += k_1[:, :, sA]
+            Kcontrib[A, A] += k_1A[A]
 
             for B in range(A + 1):
                 shl0B, shl1B, p0B, p1B = mol.aoslice_by_atom()[B]
@@ -735,29 +756,33 @@ class HFHelper:
                 reshape_only_first_dimension((j_2AB, k_3AB))
 
                 # A-B manipulation
-                JKcontrib[A, B, :, :, sA, sB] += j_2[:, :, sA, sB]
-                JKcontrib[A, B] += j_2AB
-                JKcontrib[A, B, :, :, sA] += 2 * j_3A[B][:, :, sA]
-                JKcontrib[B, A, :, :, sB] += 2 * j_3A[A][:, :, sB]
-                JKcontrib[A, B, :, :, sA] += kprefix * k_2A[B][:, :, sA]
-                JKcontrib[B, A, :, :, sB] += kprefix * k_2A[A][:, :, sB]
-                JKcontrib[A, B, :, :, sA] += kprefix * k_3A[B][:, :, sA]
-                JKcontrib[B, A, :, :, sB] += kprefix * k_3A[A][:, :, sB]
-                JKcontrib[A, B, :, :, sA, sB] += kprefix * k_3[:, :, sB, sA].swapaxes(-1, -2)
-                JKcontrib[A, B] += kprefix * k_3AB
+                Jcontrib[A, B, :, :, sA, sB] += j_2[:, :, sA, sB]
+                Jcontrib[A, B] += j_2AB
+                Jcontrib[A, B, :, :, sA] += 2 * j_3A[B][:, :, sA]
+                Jcontrib[B, A, :, :, sB] += 2 * j_3A[A][:, :, sB]
+                Kcontrib[A, B, :, :, sA] += k_2A[B][:, :, sA]
+                Kcontrib[B, A, :, :, sB] += k_2A[A][:, :, sB]
+                Kcontrib[A, B, :, :, sA] += k_3A[B][:, :, sA]
+                Kcontrib[B, A, :, :, sB] += k_3A[A][:, :, sB]
+                Kcontrib[A, B, :, :, sA, sB] += k_3[:, :, sB, sA].swapaxes(-1, -2)
+                Kcontrib[A, B] += k_3AB
 
             # A == B finalize
 
-            JKcontrib[A, A] /= 2
+            Jcontrib[A, A] /= 2
+            Kcontrib[A, A] /= 2
+            gc.collect()
 
         # Symmetry Finalize
-        JKcontrib += JKcontrib.transpose((0, 1, 2, 3, 5, 4))
-        JKcontrib += JKcontrib.transpose((1, 0, 3, 2, 4, 5))
+        Jcontrib += Jcontrib.transpose((0, 1, 2, 3, 5, 4))
+        Jcontrib += Jcontrib.transpose((1, 0, 3, 2, 4, 5))
+        Kcontrib += Kcontrib.transpose((0, 1, 2, 3, 5, 4))
+        Kcontrib += Kcontrib.transpose((1, 0, 3, 2, 4, 5))
 
-        return JKcontrib
+        return Jcontrib, Kcontrib
 
     def _get_F_2_ao(self):
-        return self.H_2_ao + self.get_F_2_ao_JKcontrib_()
+        return self.H_2_ao + self.F_2_ao_Jcontrib - 0.5 * self.F_2_ao_Kcontrib
 
     def _get_F_2_mo(self):
         return np.einsum("ABtsuv, up, vq -> pq", self.F_2_ao, self.C, self.C)
@@ -774,6 +799,7 @@ class HFHelper:
         return B_1
 
     @timing
+    @gccollect
     def _get_U_1(self, total_u=True):
         """
 

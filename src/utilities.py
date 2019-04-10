@@ -1,7 +1,7 @@
 import numpy as np
 from functools import wraps
 from time import time
-import os, inspect
+import os, inspect, gc
 
 
 LOGLEVEL = int(os.getenv("LOGLEVEL", 0))
@@ -47,5 +47,14 @@ def timing(f):
             the_class = stack[1][0].f_locals["self"].__class__.__qualname__
             the_method = stack[1][0].f_code.co_name
             print(" {0:30s}, {1:50s} Elapsed time: {2:25.10f}".format(f.__qualname__, the_class + "." + the_method + "()", end-start))
+        return result
+    return wrapper
+
+
+def gccollect(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        result = f(*args, **kwargs)
+        gc.collect()
         return result
     return wrapper

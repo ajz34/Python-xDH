@@ -2,7 +2,7 @@ from hf_helper import HFHelper
 from gga_helper import GGAHelper
 from grid_iterator import GridIterator
 from grid_helper import KernelHelper
-from utilities import timing
+from utilities import timing, gccollect
 import numpy as np
 from functools import partial
 from pyscf import scf, lib
@@ -35,6 +35,7 @@ class NCGGAEngine:
 
         return
 
+    @gccollect
     def get_E_0(self):
 
         self.E_0 = self.nch.scf_eng.energy_tot(dm=self.scfh.D)
@@ -47,6 +48,7 @@ class NCGGAEngine:
         return self._Z_1
 
     @timing
+    @gccollect
     def _get_Z_1(self):
         scfh, nch = self.scfh, self.nch
         so, sv = scfh.so, scfh.sv
@@ -65,6 +67,7 @@ class NCGGAEngine:
 
         return Z_1
 
+    @gccollect
     def get_E_1(self):
 
         scfh = self.scfh
@@ -114,6 +117,7 @@ class NCGGAEngine:
 
         return self.E_2
 
+    @gccollect
     def get_E_SS(self):
 
         scfh = self.scfh
@@ -167,13 +171,14 @@ class NCGGAEngine:
         # HF Contribution
         E_SS_HF_contrib = (
             + np.einsum("ABtsuv, uv -> ABts", scfh.H_2_ao, D)
-            + 0.5 * np.einsum("ABtsuv, uv -> ABts", scfh.get_F_2_ao_JKcontrib_(cx=nch.cx), D)
+            + 0.5 * np.einsum("ABtsuv, uv -> ABts", scfh.F_2_ao_Jcontrib - 0.5 * nch.cx * scfh.F_2_ao_Kcontrib, D)
         )
 
         E_SS = E_SS_GGA_contrib1 + E_SS_GGA_contrib2 + E_SS_GGA_contrib3 + E_SS_HF_contrib
         self.E_SS = E_SS
         return self.E_SS
 
+    @gccollect
     def get_E_SU(self):
 
         nch = self.nch
@@ -191,6 +196,7 @@ class NCGGAEngine:
         self.E_SU = E_SU
         return self.E_SU
 
+    @gccollect
     def get_E_UU(self):
 
         scfh = self.scfh

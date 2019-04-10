@@ -9,18 +9,15 @@ os.environ["MKL_NUM_THREADS"] = MAXCORE
 os.environ["VECLIB_MAXIMUM_THREADS"] = MAXCORE
 os.environ["NUMEXPR_NUM_THREADS"] = MAXCORE
 
+
 from hf_helper import HFHelper
 from gga_helper import GGAHelper
 from ncgga_engine import NCGGAEngine
-from numeric_helper import NumericDiff
-import numpy as np
 from functools import partial
 from pyscf import gto, dft
 
 
-np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * 2 / 8])
 print = partial(print, flush=True)
-np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
 if __name__ == "__main__":
@@ -44,7 +41,7 @@ if __name__ == "__main__":
         """
     mol.basis = "aug-cc-pVTZ"
     mol.verbose = 0
-    mol.max_memory = 48000
+    mol.max_memory = 24000
     mol.build()
 
     grids = dft.gen_grid.Grids(mol)
@@ -81,39 +78,6 @@ if __name__ == "__main__":
     print("E_UU time            ", time.time() - time0)
     time0 = time.time()
 
-    print(ncengine.get_E_2())
     print("E_2 time             ", time.time() - time0)
     time0 = time.time()
     print(ncengine.E_2)
-
-
-    def mol_to_E_0(mol):
-        scfh_ = HFHelper(mol)
-        nch_ = GGAHelper(mol, "b3lypg", grids, init_scf=False)
-        ncengine_ = NCGGAEngine(scfh_, nch_)
-        return ncengine_.get_E_0()
-
-
-    def mol_to_E_1(mol):
-        scfh_ = HFHelper(mol)
-        nch_ = GGAHelper(mol, "b3lypg", grids, init_scf=False)
-        ncengine_ = NCGGAEngine(scfh_, nch_)
-        return ncengine_.get_E_1()
-
-
-    E_0_diff = NumericDiff(mol, mol_to_E_0, interval=1e-4).get_numdif()
-    print("E_0_diff             ", time.time() - time0)
-    time0 = time.time()
-    print(abs(ncengine.E_1 - E_0_diff).max())
-
-    E_1_diff = NumericDiff(mol, mol_to_E_1, interval=1e-4, deriv=2).get_numdif()
-    print("E_1_diff             ", time.time() - time0)
-    time0 = time.time()
-    print(abs(ncengine.E_2 - E_1_diff).max())
-
-    print()
-    print("------ Summary ------")
-    print("Gradient deviation: ", abs(ncengine.E_1 - E_0_diff).max())
-    print("Hessian  deviation: ", abs(ncengine.E_2 - E_1_diff).max())
-
-
