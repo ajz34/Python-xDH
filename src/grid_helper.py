@@ -92,25 +92,34 @@ class KernelHelper:
         self.gh = gh  # type: GridHelper or GridIterator
         self.xc = xc  # type: str
 
+        # Variable definition
+        self.exc = None
+        self.fr = None
+        self.fg = None
+        self.frr = None
+        self.frg = None
+        self.fgg = None
+        self.vxc = None
+        self.fxc = None
+        self.frrr = None
+        self.frrg = None
+        self.frgg = None
+        self.fggg = None
+
         # Calculation
         cx = gh.ni.hybrid_coeff(xc)
-        grid_exc, grid_vxc, grid_fxc = gh.ni.eval_xc(xc, gh.rho_01, deriv=deriv)[:3]
-        grid_fr, grid_fg = grid_vxc[0:2]
-        grid_frr, grid_frg, grid_fgg = grid_fxc[0:3]
-        grid_exc *= gh.weight
-        grid_fr = grid_vxc[0] * gh.weight
-        grid_fg = grid_vxc[1] * gh.weight
-        grid_frr = grid_fxc[0] * gh.weight
-        grid_frg = grid_fxc[1] * gh.weight
-        grid_fgg = grid_fxc[2] * gh.weight
-
-        # Variable definition
-        self.exc = grid_exc
-        self.fr = grid_fr
-        self.fg = grid_fg
-        self.frr = grid_frr
-        self.frg = grid_frg
-        self.fgg = grid_fgg
-        self.vxc = grid_vxc
-        self.fxc = grid_fxc
+        grid_exc, grid_vxc, grid_fxc, grid_kxc = gh.ni.eval_xc(xc, gh.rho_01, deriv=deriv)
+        self.exc = grid_exc * gh.weight
+        if deriv >= 1:
+            self.fr = grid_vxc[0] * gh.weight
+            self.fg = grid_vxc[1] * gh.weight
+        if deriv >= 2:
+            self.frr = grid_fxc[0] * gh.weight
+            self.frg = grid_fxc[1] * gh.weight
+            self.fgg = grid_fxc[2] * gh.weight
+        if deriv >= 3:
+            self.frrr = grid_kxc[0] * gh.weight
+            self.frrg = grid_kxc[1] * gh.weight
+            self.frgg = grid_kxc[2] * gh.weight
+            self.fggg = grid_kxc[3] * gh.weight
         return
