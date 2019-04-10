@@ -116,46 +116,203 @@ class HFHelper:
     @property
     def H_0_ao(self):
         if self._H_0_ao is None:
-            self._H_0_ao = self.scf_eng.get_hcore()
+            self._H_0_ao = self._get_H_0_ao()
         return self._H_0_ao
 
     @property
     def H_0_mo(self):
         if self._H_0_mo is None:
-            self._H_0_mo = self.C.T @ self.H_0_ao @ self.C
+            self._H_0_mo = self._get_H_0_mo()
         return self._H_0_mo
 
     @property
     def F_0_ao(self):
         if self._F_0_ao is None:
-            self._F_0_ao = self.scf_eng.get_fock(dm=self.D)
+            self._F_0_ao = self._get_F_0_ao()
         return self._F_0_ao
 
     @property
     def F_0_mo(self):
         if self._F_0_mo is None:
-            self._F_0_mo = self.C.T @ self.F_0_ao @ self.C
+            self._F_0_mo = self._get_F_0_mo()
         return self._F_0_mo
 
     @property
-    @timing
     def eri0_ao(self):
         warnings.warn("eri0_ao: ERI should not be stored in memory! Consider J/K engines!")
         if self._eri0_ao is None:
-            self._eri0_ao = self.mol.intor("int2e")
+            self._eri0_ao = self._get_eri0_ao()
         return self._eri0_ao
 
     @property
-    @timing
     def eri0_mo(self):
         warnings.warn("eri0_mo: ERI AO -> MO is quite expensive!")
         if self._eri0_mo is None:
             self._eri0_mo = np.einsum("uvkl, up, vq, kr, ls -> pqrs", self.eri0_ao, self.C, self.C, self.C, self.C)
         return self._eri0_mo
 
+    @property
+    def H_1_ao(self):
+        if self._H_1_ao is None:
+            self._H_1_ao = self._get_H_1_ao()
+        return self._H_1_ao
+
+    @property
+    def H_1_mo(self):
+        if self._H_1_mo is None:
+            self._H_1_mo = self._get_H_1_mo()
+        return self._H_1_mo
+
+    @property
+    def F_1_ao(self):
+        if self._F_1_ao is None:
+            self._F_1_ao = self._get_F_1_ao()
+        return self._F_1_ao
+
+    @property
+    def F_1_mo(self):
+        if self._F_1_mo is None:
+            self._F_1_mo = self._get_F_1_mo()
+        return self._F_1_mo
+
+    @property
+    def S_1_ao(self):
+        if self._S_1_ao is None:
+            self._S_1_ao = self._get_S_1_ao()
+        return self._S_1_ao
+
+    @property
+    def S_1_mo(self):
+        if self._S_1_mo is None:
+            self._S_1_mo = self._get_S_1_mo()
+        return self._S_1_mo
+
+    @property
+    def eri1_ao(self):
+        warnings.warn("eri1_ao: 4-idx tensor ERI should be not used!", FutureWarning)
+        if self._eri1_ao is None:
+            self._eri1_ao = self._get_eri1_ao()
+        return self._eri1_ao
+
+    @property
+    def eri1_mo(self):
+        warnings.warn("eri1_mo: 4-idx tensor ERI should be not used!", FutureWarning)
+        if self._eri1_mo is None:
+            self._eri1_mo = self._get_eri1_mo()
+        return self._eri1_mo
+
+    @property
+    def H_2_ao(self):
+        if self._H_2_ao is None:
+            self._H_2_ao = self._get_H_2_ao()
+        return self._H_2_ao
+
+    @property
+    def H_2_mo(self):
+        if self._H_2_mo is None:
+            self._H_2_mo = self._get_H_2_mo()
+        return self._H_2_mo
+
+    @property
+    def S_2_ao(self):
+        if self._S_2_ao is None:
+            self._S_2_ao = self._get_S_2_ao()
+        return self._S_2_ao
+
+    @property
+    def S_2_mo(self):
+        if self._S_2_mo is None:
+            self._S_2_mo = self._get_S_2_mo()
+        return self._S_2_mo
+
+    @property
+    def eri2_ao(self):
+        warnings.warn("eri2_ao: 4-idx tensor ERI should be not used!", FutureWarning)
+        if self._eri2_ao is None:
+            self._eri2_ao = self._get_eri2_ao()
+        return self._eri2_ao
+
+    @property
+    def eri2_mo(self):
+        warnings.warn("eri2_mo: 4-idx tensor ERI should be not used!", FutureWarning)
+        if self._eri2_mo is None:
+            self._eri2_mo = self._get_eri2_mo()
+        return self._eri2_mo
+
+    @property
+    def F_2_ao(self):
+        if self._F_2_ao is None:
+            self._F_2_ao = self._get_F_2_ao()
+        return self._F_2_ao
+
+    @property
+    def F_2_mo(self):
+        if self._F_2_mo is None:
+            self._F_2_mo = self._get_F_2_mo()
+        return self._F_2_mo
+
+    @property
+    def B_1(self):
+        if self._B_1 is None:
+            self._B_1 = self._get_B_1()
+        return self._B_1
+
+    @property
+    def U_1_vo(self):
+        if self._U_1_vo is None:
+            self._get_U_1(total_u=False)
+        return self._U_1_vo
+
+    @property
+    def U_1_ov(self):
+        if self._U_1_ov is None:
+            self._get_U_1(total_u=False)
+        return self._U_1_ov
+
+    @property
+    def U_1(self):
+        warnings.warn("U_1: Generating total U matrix should be considered as numerical unstable!", FutureWarning)
+        if self._U_1 is None:
+            self._get_U_1(total_u=True)
+        return self._U_1
+
+    @property
+    def Xi_2(self):
+        if self._Xi_2 is None:
+            self._Xi_2 = self._get_Xi_2()
+        return self._Xi_2
+
+    @property
+    def B_2_vo(self):
+        if self._B_2_vo is None:
+            self._B_2_vo = self._get_B_2_vo()
+        return self._B_2_vo
+
+    @property
+    def U_2_vo(self):
+        if self._U_2_vo is None:
+            self._U_2_vo = self._get_U_2_vo()
+        return self._U_2_vo
+
     def mol_slice(self, atm_id):
         _, _, p0, p1 = self.mol.aoslice_by_atom()[atm_id]
         return slice(p0, p1)
+
+    def _get_H_0_ao(self):
+        return self.scf_eng.get_hcore()
+
+    def _get_H_0_mo(self):
+        return self.C.T @ self.H_0_ao @ self.C
+
+    def _get_F_0_ao(self):
+        return self.scf_eng.get_fock(dm=self.D)
+
+    def _get_F_0_mo(self):
+        return self.C.T @ self.F_0_ao @ self.C
+
+    @timing
+    def _get_eri0_ao(self):
+        return self.mol.intor("int2e")
 
     @timing
     def Ax0_Core(self, si, sj, sk, sl, reshape=True):
@@ -209,6 +366,7 @@ class HFHelper:
 
         return fx
 
+    @timing
     def Ax1_Core_use_eri1_ao(self, si, sj, sk, sl):
         C = self.C
 
@@ -322,162 +480,119 @@ class HFHelper:
         self.hess = self.scf_hess.kernel()
         return self.hess
 
-    @property
-    def H_1_ao(self):
-        if self._H_1_ao is None:
-            self._H_1_ao = np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)])
-        return self._H_1_ao
+    def _get_H_1_ao(self):
+        return np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)])
 
-    @property
-    def H_1_mo(self):
-        if self._H_1_mo is None:
-            self._H_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.H_1_ao, self.C, self.C)
-        return self._H_1_mo
+    def _get_H_1_mo(self):
+        return np.einsum("Atuv, up, vq -> Atpq", self.H_1_ao, self.C, self.C)
 
-    @property
-    def F_1_ao(self):
-        if self._F_1_ao is None:
-            self._F_1_ao = self.scf_hess.make_h1(self.C, self.mo_occ)
-        return self._F_1_ao
-
-    @property
-    def F_1_mo(self):
-        if self._F_1_mo is None:
-            self._F_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.F_1_ao, self.C, self.C)
-        return self._F_1_mo
-
-    @property
-    def S_1_ao(self):
-        if self._S_1_ao is None:
-            int1e_ipovlp = self.mol.intor("int1e_ipovlp")
-
-            def get_S_S_ao(A):
-                ao_matrix = np.zeros((3, self.nao, self.nao))
-                sA = self.mol_slice(A)
-                ao_matrix[:, sA] = -int1e_ipovlp[:, sA]
-                return ao_matrix + ao_matrix.swapaxes(1, 2)
-
-            self._S_1_ao = np.array([get_S_S_ao(A) for A in range(self.natm)])
-        return self._S_1_ao
-
-    @property
-    def S_1_mo(self):
-        if self._S_1_mo is None:
-            self._S_1_mo = np.einsum("Atuv, up, vq -> Atpq", self.S_1_ao, self.C, self.C)
-        return self._S_1_mo
-
-    @property
     @timing
-    def eri1_ao(self):
-        warnings.warn("eri1_ao: 4-idx tensor ERI should be not used!", FutureWarning)
-        if self._eri1_ao is None:
-            nao = self.nao
-            natm = self.natm
-            int2e_ip1 = self.mol.intor("int2e_ip1")
-            eri1_ao = np.zeros((natm, 3, nao, nao, nao, nao))
-            for A in range(natm):
-                sA = self.mol_slice(A)
-                eri1_ao[A, :, sA, :, :, :] -= int2e_ip1[:, sA]
-                eri1_ao[A, :, :, sA, :, :] -= int2e_ip1[:, sA].transpose(0, 2, 1, 3, 4)
-                eri1_ao[A, :, :, :, sA, :] -= int2e_ip1[:, sA].transpose(0, 3, 4, 1, 2)
-                eri1_ao[A, :, :, :, :, sA] -= int2e_ip1[:, sA].transpose(0, 3, 4, 2, 1)
-            self._eri1_ao = eri1_ao
-        return self._eri1_ao
+    def _get_F_1_ao(self):
+        return self.scf_hess.make_h1(self.C, self.mo_occ)
 
-    @property
+    def _get_F_1_mo(self):
+        return np.einsum("Atuv, up, vq -> Atpq", self.F_1_ao, self.C, self.C)
+
+    def _get_S_1_ao(self):
+        int1e_ipovlp = self.mol.intor("int1e_ipovlp")
+
+        def get_S_S_ao(A):
+            ao_matrix = np.zeros((3, self.nao, self.nao))
+            sA = self.mol_slice(A)
+            ao_matrix[:, sA] = -int1e_ipovlp[:, sA]
+            return ao_matrix + ao_matrix.swapaxes(1, 2)
+
+        S_1_ao = np.array([get_S_S_ao(A) for A in range(self.natm)])
+        return S_1_ao
+
+    def _get_S_1_mo(self):
+        return np.einsum("Atuv, up, vq -> Atpq", self.S_1_ao, self.C, self.C)
+
     @timing
-    def eri1_mo(self):
-        warnings.warn("eri1_mo: 4-idx tensor ERI should be not used!", FutureWarning)
-        if self._eri1_mo is None:
-            self._eri1_mo = np.einsum("Atuvkl, up, vq, kr, ls -> Atpqrs", self.eri1_ao, self.C, self.C, self.C, self.C)
-        return self._eri1_mo
+    def _get_eri1_ao(self):
+        nao = self.nao
+        natm = self.natm
+        int2e_ip1 = self.mol.intor("int2e_ip1")
+        eri1_ao = np.zeros((natm, 3, nao, nao, nao, nao))
+        for A in range(natm):
+            sA = self.mol_slice(A)
+            eri1_ao[A, :, sA, :, :, :] -= int2e_ip1[:, sA]
+            eri1_ao[A, :, :, sA, :, :] -= int2e_ip1[:, sA].transpose(0, 2, 1, 3, 4)
+            eri1_ao[A, :, :, :, sA, :] -= int2e_ip1[:, sA].transpose(0, 3, 4, 1, 2)
+            eri1_ao[A, :, :, :, :, sA] -= int2e_ip1[:, sA].transpose(0, 3, 4, 2, 1)
+        return eri1_ao
 
-    @property
-    def H_2_ao(self):
-        if self._H_2_ao is None:
-            self._H_2_ao = np.array(
-                [[self.scf_hess.hcore_generator()(A, B) for B in range(self.natm)] for A in range(self.natm)])
-        return self._H_2_ao
-
-    @property
-    def H_2_mo(self):
-        if self._H_2_mo is None:
-            self._H_2_mo = np.einsum("ABtsuv, up, vq -> ABtspq", self.H_2_ao, self.C, self.C)
-        return self._H_2_mo
-
-    @property
-    def S_2_ao(self):
-        if self._S_2_ao is None:
-            int1e_ipovlpip = self.mol.intor("int1e_ipovlpip")
-            int1e_ipipovlp = self.mol.intor("int1e_ipipovlp")
-
-            def get_S_SS_ao(A, B):
-                ao_matrix = np.zeros((9, self.nao, self.nao))
-                sA = self.mol_slice(A)
-                sB = self.mol_slice(B)
-                ao_matrix[:, sA, sB] = int1e_ipovlpip[:, sA, sB]
-                if A == B:
-                    ao_matrix[:, sA] += int1e_ipipovlp[:, sA]
-                return (ao_matrix + ao_matrix.swapaxes(1, 2)).reshape(3, 3, self.nao, self.nao)
-
-            self._S_2_ao = np.array([[get_S_SS_ao(A, B) for B in range(self.natm)] for A in range(self.natm)])
-        return self._S_2_ao
-
-    @property
-    def S_2_mo(self):
-        if self._S_2_mo is None:
-            self._S_2_mo = np.einsum("ABtsuv, up, vq -> ABtspq", self.S_2_ao, self.C, self.C)
-        return self._S_2_mo
-
-    @property
     @timing
-    def eri2_ao(self):
-        warnings.warn("eri2_ao: 4-idx tensor ERI should be not used!", FutureWarning)
-        if self._eri2_ao is None:
-            natm = self.natm
-            nao = self.nao
-            mol_slice = self.mol_slice
+    def _get_eri1_mo(self):
+        return np.einsum("Atuvkl, up, vq, kr, ls -> Atpqrs", self.eri1_ao, self.C, self.C, self.C, self.C)
 
-            int2e_ipip1 = self.mol.intor("int2e_ipip1")
-            int2e_ipvip1 = self.mol.intor("int2e_ipvip1")
-            int2e_ip1ip2 = self.mol.intor("int2e_ip1ip2")
-
-            def get_eri2(A, B):
-                sA, sB = mol_slice(A), mol_slice(B)
-                eri2 = np.zeros((9, nao, nao, nao, nao))
-
-                if A == B:
-                    eri2[:, sA, :, :, :] += int2e_ipip1[:, sA]
-                    eri2[:, :, sA, :, :] += int2e_ipip1[:, sA].transpose(0, 2, 1, 3, 4)
-                    eri2[:, :, :, sA, :] += int2e_ipip1[:, sA].transpose(0, 3, 4, 1, 2)
-                    eri2[:, :, :, :, sA] += int2e_ipip1[:, sA].transpose(0, 3, 4, 2, 1)
-                eri2[:, sA, sB, :, :] += int2e_ipvip1[:, sA, sB]
-                eri2[:, sB, sA, :, :] += np.einsum("Tijkl -> Tjikl", int2e_ipvip1[:, sA, sB])
-                eri2[:, :, :, sA, sB] += np.einsum("Tijkl -> Tklij", int2e_ipvip1[:, sA, sB])
-                eri2[:, :, :, sB, sA] += np.einsum("Tijkl -> Tklji", int2e_ipvip1[:, sA, sB])
-                eri2[:, sA, :, sB, :] += int2e_ip1ip2[:, sA, :, sB]
-                eri2[:, sB, :, sA, :] += np.einsum("Tijkl -> Tklij", int2e_ip1ip2[:, sA, :, sB])
-                eri2[:, sA, :, :, sB] += np.einsum("Tijkl -> Tijlk", int2e_ip1ip2[:, sA, :, sB])
-                eri2[:, sB, :, :, sA] += np.einsum("Tijkl -> Tklji", int2e_ip1ip2[:, sA, :, sB])
-                eri2[:, :, sA, sB, :] += np.einsum("Tijkl -> Tjikl", int2e_ip1ip2[:, sA, :, sB])
-                eri2[:, :, sB, sA, :] += np.einsum("Tijkl -> Tlkij", int2e_ip1ip2[:, sA, :, sB])
-                eri2[:, :, sA, :, sB] += np.einsum("Tijkl -> Tjilk", int2e_ip1ip2[:, sA, :, sB])
-                eri2[:, :, sB, :, sA] += np.einsum("Tijkl -> Tlkji", int2e_ip1ip2[:, sA, :, sB])
-
-                return eri2.reshape(3, 3, nao, nao, nao, nao)
-
-            eri2_ao = [[get_eri2(A, B) for B in range(natm)] for A in range(natm)]
-            self._eri2_ao = eri2_ao
-        return self._eri2_ao
-
-    @property
     @timing
-    def eri2_mo(self):
-        warnings.warn("eri2_mo: 4-idx tensor ERI should be not used!", FutureWarning)
-        if self._eri2_mo is None:
-            self._eri2_mo = np.einsum("ABTSuvkl, up, vq, kr, ls -> ABTSpqrs", self.eri2_ao, self.C, self.C, self.C, self.C)
-        return self._eri2_mo
+    def _get_H_2_ao(self):
+        return np.array([[self.scf_hess.hcore_generator()(A, B) for B in range(self.natm)] for A in range(self.natm)])
 
+    def _get_H_2_mo(self):
+        return np.einsum("ABtsuv, up, vq -> ABtspq", self.H_2_ao, self.C, self.C)
+
+    @timing
+    def _get_S_2_ao(self):
+        int1e_ipovlpip = self.mol.intor("int1e_ipovlpip")
+        int1e_ipipovlp = self.mol.intor("int1e_ipipovlp")
+
+        def get_S_SS_ao(A, B):
+            ao_matrix = np.zeros((9, self.nao, self.nao))
+            sA = self.mol_slice(A)
+            sB = self.mol_slice(B)
+            ao_matrix[:, sA, sB] = int1e_ipovlpip[:, sA, sB]
+            if A == B:
+                ao_matrix[:, sA] += int1e_ipipovlp[:, sA]
+            return (ao_matrix + ao_matrix.swapaxes(1, 2)).reshape(3, 3, self.nao, self.nao)
+
+        return np.array([[get_S_SS_ao(A, B) for B in range(self.natm)] for A in range(self.natm)])
+
+    def _get_S_2_mo(self):
+        return np.einsum("ABtsuv, up, vq -> ABtspq", self.S_2_ao, self.C, self.C)
+
+    @timing
+    def _get_eri2_ao(self):
+        natm = self.natm
+        nao = self.nao
+        mol_slice = self.mol_slice
+
+        int2e_ipip1 = self.mol.intor("int2e_ipip1")
+        int2e_ipvip1 = self.mol.intor("int2e_ipvip1")
+        int2e_ip1ip2 = self.mol.intor("int2e_ip1ip2")
+
+        def get_eri2(A, B):
+            sA, sB = mol_slice(A), mol_slice(B)
+            eri2 = np.zeros((9, nao, nao, nao, nao))
+
+            if A == B:
+                eri2[:, sA, :, :, :] += int2e_ipip1[:, sA]
+                eri2[:, :, sA, :, :] += int2e_ipip1[:, sA].transpose(0, 2, 1, 3, 4)
+                eri2[:, :, :, sA, :] += int2e_ipip1[:, sA].transpose(0, 3, 4, 1, 2)
+                eri2[:, :, :, :, sA] += int2e_ipip1[:, sA].transpose(0, 3, 4, 2, 1)
+            eri2[:, sA, sB, :, :] += int2e_ipvip1[:, sA, sB]
+            eri2[:, sB, sA, :, :] += np.einsum("Tijkl -> Tjikl", int2e_ipvip1[:, sA, sB])
+            eri2[:, :, :, sA, sB] += np.einsum("Tijkl -> Tklij", int2e_ipvip1[:, sA, sB])
+            eri2[:, :, :, sB, sA] += np.einsum("Tijkl -> Tklji", int2e_ipvip1[:, sA, sB])
+            eri2[:, sA, :, sB, :] += int2e_ip1ip2[:, sA, :, sB]
+            eri2[:, sB, :, sA, :] += np.einsum("Tijkl -> Tklij", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, sA, :, :, sB] += np.einsum("Tijkl -> Tijlk", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, sB, :, :, sA] += np.einsum("Tijkl -> Tklji", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, :, sA, sB, :] += np.einsum("Tijkl -> Tjikl", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, :, sB, sA, :] += np.einsum("Tijkl -> Tlkij", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, :, sA, :, sB] += np.einsum("Tijkl -> Tjilk", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, :, sB, :, sA] += np.einsum("Tijkl -> Tlkji", int2e_ip1ip2[:, sA, :, sB])
+
+            return eri2.reshape(3, 3, nao, nao, nao, nao)
+
+        return [[get_eri2(A, B) for B in range(natm)] for A in range(natm)]
+
+    @timing
+    def _get_eri2_mo(self):
+        return np.einsum("ABTSuvkl, up, vq, kr, ls -> ABTSpqrs", self.eri2_ao, self.C, self.C, self.C, self.C)
+
+    @timing
     def get_F_2_ao_byeri2(self):
         F_2_ao = (
                 self.H_2_ao
@@ -486,6 +601,7 @@ class HFHelper:
         )
         return F_2_ao
 
+    @timing
     def get_F_2_ao_JKcontrib_(self, cx=1):
 
         mol = self.mol
@@ -637,49 +753,22 @@ class HFHelper:
 
         return JKcontrib
 
-    @property
-    def F_2_ao(self):
-        if self._F_2_ao is None:
-            self._F_2_ao = self.H_2_ao + self.get_F_2_ao_JKcontrib_()
-        return self._F_2_ao
+    def _get_F_2_ao(self):
+        return self.H_2_ao + self.get_F_2_ao_JKcontrib_()
 
-    @property
-    def F_2_mo(self):
-        if self._F_2_mo is None:
-            self._F_2_mo = np.einsum("ABtsuv, up, vq -> pq", self.F_2_ao, self.C, self.C)
-        return self._F_2_mo
+    def _get_F_2_mo(self):
+        return np.einsum("ABtsuv, up, vq -> pq", self.F_2_ao, self.C, self.C)
 
-    @property
-    def B_1(self):
-        if self._B_1 is None:
-            sa = self.sa
-            so = self.so
+    def _get_B_1(self):
+        sa = self.sa
+        so = self.so
 
-            self._B_1 = (
-                    self.F_1_mo
-                    - self.S_1_mo * self.e
-                    - 0.5 * self.Ax0_Core(sa, sa, so, so)(self.S_1_mo[:, :, so, so])
-            )
-        return self._B_1
-
-    @property
-    def U_1_vo(self):
-        if self._U_1_vo is None:
-            self._get_U_1(total_u=False)
-        return self._U_1_vo
-
-    @property
-    def U_1_ov(self):
-        if self._U_1_ov is None:
-            self._get_U_1(total_u=False)
-        return self._U_1_ov
-
-    @property
-    def U_1(self):
-        warnings.warn("U_1: Generating total U matrix should be considered as numerical unstable!", FutureWarning)
-        if self._U_1 is None:
-            self._get_U_1(total_u=True)
-        return self._U_1
+        B_1 = (
+            self.F_1_mo
+            - self.S_1_mo * self.e
+            - 0.5 * self.Ax0_Core(sa, sa, so, so)(self.S_1_mo[:, :, so, so])
+        )
+        return B_1
 
     @timing
     def _get_U_1(self, total_u=True):
@@ -735,78 +824,72 @@ class HFHelper:
             self._U_1 = U_1_pq
             return self._U_1
 
-    @property
-    def Xi_2(self):
-        if self._Xi_2 is None:
-            U_1 = self.U_1
-            S_1_mo = self.S_1_mo
+    @timing
+    def _get_Xi_2(self):
+        U_1 = self.U_1
+        S_1_mo = self.S_1_mo
 
-            self._Xi_2 = (
-                    self.S_2_mo
-                    + np.einsum("Atpm, Bsqm -> ABtspq", U_1, U_1)
-                    + np.einsum("Bspm, Atqm -> ABtspq", U_1, U_1)
-                    - np.einsum("Atpm, Bsqm -> ABtspq", S_1_mo, S_1_mo)
-                    - np.einsum("Bspm, Atqm -> ABtspq", S_1_mo, S_1_mo)
-            )
-        return self._Xi_2
+        Xi_2 = (
+            self.S_2_mo
+            + np.einsum("Atpm, Bsqm -> ABtspq", U_1, U_1)
+            + np.einsum("Bspm, Atqm -> ABtspq", U_1, U_1)
+            - np.einsum("Atpm, Bsqm -> ABtspq", S_1_mo, S_1_mo)
+            - np.einsum("Bspm, Atqm -> ABtspq", S_1_mo, S_1_mo)
+        )
+        return Xi_2
 
-    @property
-    def B_2_vo(self):
-        if self._B_2_vo is None:
-            sv = self.sv
-            so = self.so
-            sa = self.sa
-            eo = self.eo
-            e = self.e
-            U_1 = self.U_1
-            F_1_mo = self.F_1_mo
-            Ax0_Core = self.Ax0_Core
-            Ax1_Core = self.Ax1_Core
-            self._B_2_vo = (
-                # line 1
-                np.einsum("ABtsuv, ua, vi -> ABtsai", self.F_2_ao, self.Cv, self.Co)
-                - np.einsum("ABtsai, i -> ABtsai", self.Xi_2[:, :, :, :, sv, so], eo)
-                - 0.5 * Ax0_Core(sv, so, so, so)(self.Xi_2[:, :, :, :, so, so])
-                # line 2
-                + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
-                + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
-                + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
-                + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
-                # line 3
-                + np.einsum("Atpa, Bspi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
-                + np.einsum("Bspa, Atpi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
-                # line 4
-                + Ax0_Core(sv, so, sa, sa)(np.einsum("Atkm, Bslm -> ABtskl", U_1[:, :, :, so], U_1[:, :, :, so]))
-                # line 5
-                + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
-                + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
-                # line 6
-                + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
-                + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
-                # line 7
-                + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so])
-                + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so]).transpose((1, 0, 3, 2, 4, 5))
-            )
-        return self._B_2_vo
+    @timing
+    def _get_B_2_vo(self):
+        sv = self.sv
+        so = self.so
+        sa = self.sa
+        eo = self.eo
+        e = self.e
+        U_1 = self.U_1
+        F_1_mo = self.F_1_mo
+        Ax0_Core = self.Ax0_Core
+        Ax1_Core = self.Ax1_Core
+        B_2_vo = (
+            # line 1
+            np.einsum("ABtsuv, ua, vi -> ABtsai", self.F_2_ao, self.Cv, self.Co)
+            - np.einsum("ABtsai, i -> ABtsai", self.Xi_2[:, :, :, :, sv, so], eo)
+            - 0.5 * Ax0_Core(sv, so, so, so)(self.Xi_2[:, :, :, :, so, so])
+            # line 2
+            + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
+            + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
+            + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
+            + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
+            # line 3
+            + np.einsum("Atpa, Bspi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
+            + np.einsum("Bspa, Atpi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
+            # line 4
+            + Ax0_Core(sv, so, sa, sa)(np.einsum("Atkm, Bslm -> ABtskl", U_1[:, :, :, so], U_1[:, :, :, so]))
+            # line 5
+            + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
+            + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
+            # line 6
+            + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
+            + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
+            # line 7
+            + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so])
+            + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so]).transpose((1, 0, 3, 2, 4, 5))
+        )
+        return B_2_vo
 
-    @property
-    def U_2_vo(self):
-        if self._U_2_vo is None:
-            B_2_vo = self.B_2_vo
-            Ax0_Core = self.Ax0_Core
-            sv = self.sv
-            so = self.so
+    @timing
+    def _get_U_2_vo(self):
+        sv = self.sv
+        so = self.so
 
-            # Generate v-o block of U
-            U_2_vo = scf.cphf.solve(
-                self.Ax0_Core(sv, so, sv, so),
-                self.e,
-                self.scf_eng.mo_occ,
-                B_2_vo.reshape(-1, self.nvir, self.nocc),
-                max_cycle=500,
-                tol=1e-15,
-                hermi=False
-            )[0]
-            U_2_vo.shape = (self.natm, self.natm, 3, 3, self.nvir, self.nocc)
-            self._U_2_vo = U_2_vo
-        return self._U_2_vo
+        # Generate v-o block of U
+        U_2_vo = scf.cphf.solve(
+            self.Ax0_Core(sv, so, sv, so),
+            self.e,
+            self.scf_eng.mo_occ,
+            self.B_2_vo.reshape(-1, self.nvir, self.nocc),
+            max_cycle=500,
+            tol=1e-15,
+            hermi=False
+        )[0]
+        U_2_vo.shape = (self.natm, self.natm, 3, 3, self.nvir, self.nocc)
+        return U_2_vo
