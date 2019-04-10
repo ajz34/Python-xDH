@@ -2,8 +2,8 @@ import sys, os
 sys.path.append('../../')
 
 
-MAXCORE = "24"
-os.environ["MAXMEM"] = "24"
+MAXCORE = "72"
+os.environ["MAXMEM"] = "72"
 os.environ["OMP_NUM_THREADS"] = MAXCORE
 os.environ["OPENBLAS_NUM_THREADS"] = MAXCORE
 os.environ["MKL_NUM_THREADS"] = MAXCORE
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         """
     mol.basis = "aug-cc-pVTZ"
     mol.verbose = 0
-    mol.max_memory = 24000
+    mol.max_memory = 72000
     mol.build()
 
     grids = dft.gen_grid.Grids(mol)

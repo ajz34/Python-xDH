@@ -1,7 +1,7 @@
 import numpy as np
-from functools import wraps
+from functools import wraps, partial
 from time import time
-import os, inspect, gc, partial
+import os, inspect, gc
 
 
 LOGLEVEL = int(os.getenv("LOGLEVEL", 0))
