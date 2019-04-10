@@ -800,10 +800,19 @@ class HFHelper:
             self.scf_eng.mo_occ,
             B_1[:, :, sv, so].reshape(-1, self.nvir, self.nocc),
             max_cycle=100,
-            tol=1e-15,
+            tol=1e-20,
             hermi=False
         )[0]
         U_1_ai.shape = (self.natm, 3, self.nvir, self.nocc)
+
+        # Test whether converged
+        conv = (
+            + U_1_ai * lib.direct_sum("a - i", self.ev, self.eo)
+            + self.Ax0_Core(sv, so, sv, so)(U_1_ai)
+            + self.B_1[:, :, sv, so]
+        )
+        if abs(conv).max() > 1e-9:
+            warnings.warn("U_1: CP-HF not converged!")
 
         if not total_u:
             self._U_1_vo = U_1_ai

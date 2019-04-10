@@ -2,11 +2,12 @@ from hf_helper import HFHelper
 from gga_helper import GGAHelper
 from grid_iterator import GridIterator
 from grid_helper import KernelHelper
+from utilities import timing
 import numpy as np
 from functools import partial
-from pyscf import scf
+from pyscf import scf, lib
 import pyscf.scf.cphf
-import os
+import os, warnings
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -30,6 +31,7 @@ class NCGGAEngine:
         self.E_SS = None
         self.E_SU = None
         self.E_UU = None
+        self._Z_1 = None
 
         return
 
@@ -37,6 +39,31 @@ class NCGGAEngine:
 
         self.E_0 = self.nch.scf_eng.energy_tot(dm=self.scfh.D)
         return self.E_0
+
+    @property
+    def Z_1(self):
+        if self._Z_1 is None:
+            self._Z_1 = self._get_Z_1()
+        return self._Z_1
+
+    @timing
+    def _get_Z_1(self):
+        scfh, nch = self.scfh, self.nch
+        so, sv = scfh.so, scfh.sv
+        Z_1 = scf.cphf.solve(scfh.Ax0_Core(sv, so, sv, so), scfh.e, scfh.mo_occ, nch.F_0_mo[sv, so],
+                             max_cycle=100, tol=1e-20)[0]
+
+        # Test whether converged
+        conv = (
+            + Z_1 * lib.direct_sum("a - i", scfh.ev, scfh.eo)
+            + scfh.Ax0_Core(sv, so, sv, so)(Z_1)
+            + nch.F_0_mo[sv, so]
+        )
+        if abs(conv).max() > 1e-9:
+            msg = "\nget_E_1: CP-HF not converged!\nMaximum deviation: " + str(abs(conv).max())
+            warnings.warn(msg)
+
+        return Z_1
 
     def get_E_1(self):
 
@@ -65,9 +92,8 @@ class NCGGAEngine:
             sA = scfh.mol_slice(A)
             E_S[A] += np.einsum("tuv, uv -> t", jk_1[:, sA], D[sA])
 
-        Z_1 = scf.cphf.solve(scfh.Ax0_Core(sv, so, sv, so), scfh.e, scfh.mo_occ, nch.F_0_mo[sv, so])[0]
         E_U = (
-            + 4 * np.einsum("Atai, ai -> At", scfh.B_1[:, :, sv, so], Z_1)
+            + 4 * np.einsum("Atai, ai -> At", scfh.B_1[:, :, sv, so], self.Z_1)
             - 2 * np.einsum("Atki, ki -> At", scfh.S_1_mo[:, :, so, so], nch.F_0_mo[so, so])
         )
 
@@ -201,8 +227,6 @@ class NCGGAEngine:
         )
         E_UU_safe_3 += E_UU_safe_3.transpose((1, 0, 3, 2))
 
-        Z = scf.cphf.solve(Ax0_Core(sv, so, sv, so), e, scfh.mo_occ, nch.F_0_mo[sv, so])[0]
-
         B_2_tmp_1 = (
             Co @ (
                 - 0.25 * S_2_mo[:, :, :, :, so, so]
@@ -228,7 +252,7 @@ class NCGGAEngine:
         )
 
         # B_2_new_vo += B_2_new_vo.transpose((1, 0, 3, 2, 4, 5))
-        E_UU_safe_4 = 4 * np.einsum("ai, ABtsai -> ABts", Z, B_2_new_vo)
+        E_UU_safe_4 = 4 * np.einsum("ai, ABtsai -> ABts", self.Z_1, B_2_new_vo)
         E_UU_safe_4 += E_UU_safe_4.transpose((1, 0, 3, 2))
 
         E_UU = E_UU_safe_1 + E_UU_safe_2 + E_UU_safe_3 + E_UU_safe_4
