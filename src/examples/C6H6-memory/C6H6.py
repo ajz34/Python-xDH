@@ -1,6 +1,7 @@
 import sys, os
 sys.path.append('../../')
 
+
 MAXCORE = "24"
 os.environ["MAXMEM"] = "24"
 os.environ["OMP_NUM_THREADS"] = MAXCORE
@@ -8,6 +9,7 @@ os.environ["OPENBLAS_NUM_THREADS"] = MAXCORE
 os.environ["MKL_NUM_THREADS"] = MAXCORE
 os.environ["VECLIB_MAXIMUM_THREADS"] = MAXCORE
 os.environ["NUMEXPR_NUM_THREADS"] = MAXCORE
+os.environ["LOGLEVEL"] = "2"
 
 
 from hf_helper import HFHelper
