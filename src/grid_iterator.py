@@ -26,6 +26,7 @@ class GridIterator:
         self._ao_1 = None
         self._ao_2 = None
         self._ao_2T = None
+        self._ao_3 = None
         self._ao_3T = None
         self._rho_01 = None
         self._rho_0 = None
@@ -107,6 +108,24 @@ class GridIterator:
         return self._ao_2
 
     @property
+    def ao_3(self):
+        if self._ao_3 is None:
+            XXX, XXY, XXZ, XYY, XYZ, XZZ, YYY, YYZ, YZZ, ZZZ = range(10, 20)
+            ao = self.ao
+            self._ao_3 = np.array([
+                [[ao[XXX], ao[XXY], ao[XXZ]],
+                 [ao[XXY], ao[XYY], ao[XYZ]],
+                 [ao[XXZ], ao[XYZ], ao[XZZ]]],
+                [[ao[XXY], ao[XYY], ao[XYZ]],
+                 [ao[XYY], ao[YYY], ao[YYZ]],
+                 [ao[XYZ], ao[YYZ], ao[YZZ]]],
+                [[ao[XXZ], ao[XYZ], ao[XZZ]],
+                 [ao[XYZ], ao[YYZ], ao[YZZ]],
+                 [ao[XZZ], ao[YZZ], ao[ZZZ]]],
+            ])
+        return self._ao_3
+
+    @property
     def ao_3T(self):
         if self._ao_3T is None:
             XXX, XXY, XXZ, XYY, XYZ, XZZ, YYY, YYZ, YZZ, ZZZ = range(10, 20)
@@ -141,8 +160,8 @@ class GridIterator:
     def rho_2(self):
         if self._rho_2 is None:
             self._rho_2 = (
-                + 2 * np.einsum("uv, rgu, wgv -> rwuv", self.D, self.ao_1, self.ao_1)
-                + 2 * np.einsum("uv, rwgu, gv -> rwuv", self.D, self.ao_2, self.ao_0)
+                + 2 * np.einsum("uv, rgu, wgv -> rwg", self.D, self.ao_1, self.ao_1)
+                + 2 * np.einsum("uv, rwgu, gv -> rwg", self.D, self.ao_2, self.ao_0)
             )
         return self._rho_2
 
@@ -154,7 +173,7 @@ class GridIterator:
             for A in range(natm):
                 _, _, p0, p1 = self.mol.aoslice_by_atom()[A]
                 sA = slice(p0, p1)
-                self._A_rho_1[A] = - 2 * np.einsum("tgk , gl, kl -> tg ", self.ao_1[:, :, sA], self.ao_0, self.D[sA])
+                self._A_rho_1[A] = - 2 * np.einsum("tgk, gl, kl -> tg ", self.ao_1[:, :, sA], self.ao_0, self.D[sA])
         return self._A_rho_1
 
     @property
