@@ -33,6 +33,7 @@ class GridIterator:
         self._rho_2 = None
         self._A_rho_1 = None
         self._A_rho_2 = None
+        self._A_gamma_1 = None
 
     def __iter__(self):
         return self
@@ -60,6 +61,7 @@ class GridIterator:
         self._rho_2 = None
         self._A_rho_1 = None
         self._A_rho_2 = None
+        self._A_gamma_1 = None
         return
 
     @property
@@ -166,3 +168,9 @@ class GridIterator:
                 self._A_rho_2[A] = - 2 * np.einsum("trgk, gl, kl -> trg", self.ao_2[:, :, :, sA], self.ao_0, self.D[sA])
                 self._A_rho_2[A] += - 2 * np.einsum("tgk, rgl, kl -> trg", self.ao_1[:, :, sA], self.ao_1, self.D[sA])
         return self._A_rho_2
+
+    @property
+    def A_gamma_1(self):
+        if self._A_gamma_1 is None:
+            self._A_gamma_1 = np.einsum("rg, Atrg -> Atg", self.rho_1, self.A_rho_2)
+        return self._A_gamma_1

@@ -65,6 +65,8 @@ class GridHelper:
             grid_A_rho_2[A] = - 2 * np.einsum("trgk, gl, kl -> trg", grid_ao_2[:, :, :, sA], grid_ao_0, D[sA])
             grid_A_rho_2[A] += - 2 * np.einsum("tgk, rgl, kl -> trg", grid_ao_1[:, :, sA], grid_ao_1, D[sA])
 
+        grid_A_gamma_1 = 2 * np.einsum("rg, Atrg -> Atg", grid_rho_1, grid_A_rho_2)
+
         # Variable definition
         self.ni = ni
         self.ngrid = ngrid
@@ -81,6 +83,7 @@ class GridHelper:
         self.rho_2 = grid_rho_2
         self.A_rho_1 = grid_A_rho_1
         self.A_rho_2 = grid_A_rho_2
+        self.A_gamma_1 = grid_A_gamma_1
         return
 
 
