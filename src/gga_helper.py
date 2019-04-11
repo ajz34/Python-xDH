@@ -49,10 +49,10 @@ class GGAHelper(HFHelper):
         self.grdh = GridHelper(self.mol, self.grids, self.D)
         return self.grdh
 
-    def get_kerh(self):
+    def get_kerh(self, deriv=2):
         if self.grdh is None:
             self.get_grdh()
-        self.kerh = KernelHelper(self.grdh, self.xc)
+        self.kerh = KernelHelper(self.grdh, self.xc, deriv=deriv)
         return self.kerh
 
     def Ax0_Core_deprecate(self, si, sj, sk, sl, reshape=True):
