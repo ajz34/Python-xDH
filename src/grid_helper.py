@@ -8,6 +8,7 @@ import os, warnings
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
+dft.numint.libxc = dft.xcfun
 
 
 class GridHelper:
@@ -209,3 +210,5 @@ if __name__ == "__main__":
     print(np.allclose(grdh.AB_rho_3.sum(axis=(0, 1)), grdh.rho_3))
     print(np.allclose(grdh.AB_rho_3, grdh.AB_rho_3.transpose((1, 0, 3, 2, 4, 5))))
     print(np.allclose(grdh.AB_gamma_2, grdh.AB_gamma_2.transpose((1, 0, 3, 2, 4))))
+
+    kerh = KernelHelper(grdh, "B3LYPg", deriv=3)

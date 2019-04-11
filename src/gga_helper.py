@@ -104,9 +104,11 @@ class GGAHelper(HFHelper):
 
     @timing
     @gccollect
-    def Ax0_Core(self, si, sj, sk, sl, reshape=True):
+    def Ax0_Core(self, si, sj, sk, sl, cx=None, reshape=True):
         C = self.C
         nao = self.mol.nao
+        if cx is None:
+            cx = self.cx
 
         def fx(mo1_):
             mo1 = mo1_.copy()  # type: np.ndarray
@@ -118,7 +120,7 @@ class GGAHelper(HFHelper):
             for idx, dmX in enumerate(dm1):
                 ax_ao[idx] = (
                     + 1 * self.scf_eng.get_j(dm=dmX)
-                    - 0.5 * self.cx * self.scf_eng.get_k(dm=dmX)
+                    - 0.5 * cx * self.scf_eng.get_k(dm=dmX)
                 )
             grdit = GridIterator(self.mol, self.grids, self.D, deriv=2)
             for grdh in grdit:

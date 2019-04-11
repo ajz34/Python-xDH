@@ -334,7 +334,7 @@ class HFHelper:
 
     @timing
     @gccollect
-    def Ax0_Core(self, si, sj, sk, sl, reshape=True):
+    def Ax0_Core(self, si, sj, sk, sl, cx=1, reshape=True):
         """
 
         Parameters
@@ -348,6 +348,9 @@ class HFHelper:
             ``sk`` and ``sk`` should be all slice or all None. If chosen None, then `mo1` that passed in is assumed to
             be a density matrix.
         reshape : bool
+
+        cx : float
+            Exchange integral coefficient. Use in DFT calculation.
 
         Returns
         -------
@@ -371,7 +374,7 @@ class HFHelper:
             # Use PySCF higher functions to avoid explicit eri0_ao storage
             r = (
                 + 2 * self.scf_eng.get_j(dm=dm1)
-                - 1 * self.scf_eng.get_k(dm=dm1)
+                - cx * self.scf_eng.get_k(dm=dm1)
             )
             if not sij_none:
                 r = np.einsum("Auv, ui, vj -> Aij", r, C[:, si], C[:, sj])
@@ -402,7 +405,7 @@ class HFHelper:
 
     @timing
     @gccollect
-    def Ax1_Core(self, si, sj, sk, sl):
+    def Ax1_Core(self, si, sj, sk, sl, cx=1):
         """
         Calculate Axt @ X.
 
@@ -419,6 +422,9 @@ class HFHelper:
         sl : slice or None
             ``sk`` and ``sk`` should be all slice or all None. If chosen None, then `mo1` that passed in is assumed to
             be a density matrix.
+
+        cx : float
+            Exchange integral coefficient. Use in DFT calculation.
 
         Returns
         -------
@@ -479,7 +485,7 @@ class HFHelper:
                             shls_slice=((shl0, shl1) + (0, mol.nbas) * 3)
                         )
                         ax -= 4 * j_1A
-                        ax += k_1A + k_1A.swapaxes(-1, -2)
+                        ax += cx * (k_1A + k_1A.swapaxes(-1, -2))
 
                         if sij_none:
                             ax_final[A, B, :, s] = ax
