@@ -332,8 +332,6 @@ class HFHelper:
     def _get_eri0_ao(self):
         return self.mol.intor("int2e")
 
-    @timing
-    @gccollect
     def Ax0_Core(self, si, sj, sk, sl, cx=1, reshape=True):
         """
 
@@ -359,8 +357,10 @@ class HFHelper:
         C = self.C
         sij_none = si is None and sj is None
         skl_none = sk is None and sl is None
-        
-        def fx(mo1_):
+
+        @timing
+        @gccollect
+        def Ax0_Core_fx(mo1_):
             mo1 = mo1_.copy()  # type: np.ndarray
             shape1 = list(mo1.shape)
             mo1.shape = (-1, shape1[-2], shape1[-1])
@@ -386,7 +386,7 @@ class HFHelper:
                 r.shape = shape1
             return r
 
-        return fx
+        return Ax0_Core_fx
 
     @timing
     def Ax1_Core_use_eri1_ao(self, si, sj, sk, sl):
@@ -403,8 +403,6 @@ class HFHelper:
 
         return fx
 
-    @timing
-    @gccollect
     def Ax1_Core(self, si, sj, sk, sl, cx=1):
         """
         Calculate Axt @ X.
@@ -439,7 +437,9 @@ class HFHelper:
         sij_none = si is None and sj is None
         skl_none = sk is None and sl is None
 
-        def fx(mo1):
+        @timing
+        @gccollect
+        def Ax1_Core_fx(mo1):
             # It is assumed that mo1 is Bs** like
             if len(mo1.shape) != 4:
                 raise ValueError("Passed in mo1 should be Bs** like, so length of mo1.shape should be 4.")
@@ -494,7 +494,7 @@ class HFHelper:
 
             return ax_final
 
-        return fx
+        return Ax1_Core_fx
 
     # Values
 
