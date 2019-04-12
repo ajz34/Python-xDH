@@ -45,8 +45,14 @@ def timing(f):
         end = time()
         if LOGLEVEL >= 2:
             stack = inspect.stack()
-            the_class = stack[1][0].f_locals["self"].__class__.__qualname__
-            the_method = stack[1][0].f_code.co_name
+            the_class = "?"
+            the_method = "?"
+            try:
+                the_class = stack[1][0].f_locals["self"].__class__.__qualname__
+            except: pass
+            try:
+                the_method = stack[1][0].f_code.co_name
+            except: pass
             print(" {0:30s}, {1:50s} Elapsed time: {2:25.10f}".format(f.__qualname__, the_class + "." + the_method + "()", end-start))
         return result
     return wrapper
