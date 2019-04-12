@@ -110,7 +110,7 @@ class GGAHelper(HFHelper):
 
         @timing
         @gccollect
-        def Ax0_Core_fx(mo1_):
+        def fx(mo1_):
             mo1 = mo1_.copy()  # type: np.ndarray
             shape1 = list(mo1.shape)
             mo1.shape = (-1, shape1[-2], shape1[-1])
@@ -155,7 +155,7 @@ class GGAHelper(HFHelper):
                 r.shape = shape1
             return r
 
-        return Ax0_Core_fx
+        return fx
 
 
 if __name__ == "__main__":

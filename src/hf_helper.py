@@ -360,7 +360,7 @@ class HFHelper:
 
         @timing
         @gccollect
-        def Ax0_Core_fx(mo1_):
+        def fx(mo1_):
             mo1 = mo1_.copy()  # type: np.ndarray
             shape1 = list(mo1.shape)
             mo1.shape = (-1, shape1[-2], shape1[-1])
@@ -386,7 +386,7 @@ class HFHelper:
                 r.shape = shape1
             return r
 
-        return Ax0_Core_fx
+        return fx
 
     @timing
     def Ax1_Core_use_eri1_ao(self, si, sj, sk, sl):
@@ -439,7 +439,7 @@ class HFHelper:
 
         @timing
         @gccollect
-        def Ax1_Core_fx(mo1):
+        def fx(mo1):
             # It is assumed that mo1 is Bs** like
             if len(mo1.shape) != 4:
                 raise ValueError("Passed in mo1 should be Bs** like, so length of mo1.shape should be 4.")
@@ -494,7 +494,7 @@ class HFHelper:
 
             return ax_final
 
-        return Ax1_Core_fx
+        return fx
 
     # Values
 
