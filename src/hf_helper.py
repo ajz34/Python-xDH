@@ -474,8 +474,8 @@ class HFHelper:
                         sA = slice(p0, p1)  # equivalent to mol_slice(A)
                         ax[:, sA, :] -= 2 * j_1[:, sA, :]
                         ax[:, :, sA] -= 2 * j_1[:, sA, :].swapaxes(-1, -2)
-                        ax[:, sA, :] += 1 * k_1[:, sA, :]
-                        ax[:, :, sA] += 1 * k_1[:, sA, :].swapaxes(-1, -2)
+                        ax[:, sA, :] += cx * k_1[:, sA, :]
+                        ax[:, :, sA] += cx * k_1[:, sA, :].swapaxes(-1, -2)
                         # (kt l | u v), (kt u | l v)
                         j_1A, k_1A = _vhf.direct_mapdm(
                             mol._add_suffix('int2e_ip1'), "s2kl",
