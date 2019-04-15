@@ -244,12 +244,11 @@ class GGAHelper(HFHelper):
         warnings.warn("Possibly this function is incorrect!")
         if cx is None:
             cx = self.cx
-        C = self.C
-        Co = self.Co
+        C, Co = self.C, self.Co
         kerh = self.kerh
         grdh = self.grdh
-        natm = self.natm
-        nao = self.nao
+        natm, nao, nmo = self.natm, self.nao, self.nmo
+        so, sv = self.so, self.sv
         U_pi_fake = np.empty((natm, 3, nmo, nocc))
         U_pi_fake[:, :, so, so] = - 0.5 * self.S_1_mo[:, :, so, so]
         U_pi_fake[:, :, sv, so] = self.U_1_vo
