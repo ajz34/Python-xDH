@@ -242,6 +242,8 @@ class GGAHelper(HFHelper):
 
     def Ax1_Core(self, si, sj, sk, sl, cx=None):
         warnings.warn("Possibly this function is incorrect!")
+        if cx is None:
+            cx = self.cx
         C = self.C
         kerh = self.kerh
         grdh = self.grdh
