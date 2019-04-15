@@ -3,7 +3,8 @@ import pyscf.dft.numint
 import numpy as np
 from grid_iterator import GridIterator
 from functools import partial
-import os, warnings
+import os
+import warnings
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -31,7 +32,6 @@ class GridHelper:
         for ao, _, _, _ in ni.block_loop(mol, grids, nao, 3, self.mol.max_memory):
             grid_ao[:, current_grid_count:current_grid_count+ao.shape[1]] = ao
             current_grid_count += ao.shape[1]
-        current_grid_count = None
         grid_ao_0 = grid_ao[0]
         grid_ao_1 = grid_ao[1:4]
         grid_ao_2T = grid_ao[4:10]
@@ -154,15 +154,12 @@ class KernelHelper:
         self.frr = None
         self.frg = None
         self.fgg = None
-        self.vxc = None
-        self.fxc = None
         self.frrr = None
         self.frrg = None
         self.frgg = None
         self.fggg = None
 
         # Calculation
-        cx = gh.ni.hybrid_coeff(xc)
         grid_exc, grid_vxc, grid_fxc, grid_kxc = gh.ni.eval_xc(xc, gh.rho_01, deriv=deriv)
         self.exc = grid_exc * gh.weight
         if deriv >= 1:
@@ -184,25 +181,25 @@ if __name__ == "__main__":
 
     from pyscf import gto
 
-    mol = gto.Mole()
-    mol.atom = """
+    mol_ = gto.Mole()
+    mol_.atom = """
     O  0.0  0.0  0.0
     O  0.0  0.0  1.5
     H  1.5  0.0  0.0
     H  0.0  0.7  1.5
     """
-    mol.basis = "6-31G"
-    mol.verbose = 0
-    mol.build()
+    mol_.basis = "6-31G"
+    mol_.verbose = 0
+    mol_.build()
 
-    grids = dft.gen_grid.Grids(mol)
-    grids.atom_grid = (75, 302)
-    grids.becke_scheme = dft.gen_grid.stratmann
-    grids.build()
+    grids_ = dft.gen_grid.Grids(mol_)
+    grids_.atom_grid = (75, 302)
+    grids_.becke_scheme = dft.gen_grid.stratmann
+    grids_.build()
 
-    dmX = np.random.random((mol.nao, mol.nao))
+    dmX = np.random.random((mol_.nao, mol_.nao))
     dmX += dmX.T
-    grdh = GridHelper(mol, grids, dmX)
+    grdh = GridHelper(mol_, grids_, dmX)
     print(np.allclose(grdh.A_rho_1.sum(axis=0), - grdh.rho_1))
     print(np.allclose(grdh.A_rho_2.sum(axis=0), - grdh.rho_2))
     print(np.allclose(grdh.AB_rho_2.sum(axis=(0, 1)), grdh.rho_2))

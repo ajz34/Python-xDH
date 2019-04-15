@@ -7,6 +7,7 @@ import os
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
+dft.numint.libxc = dft.xcfun
 
 
 class GridIterator:
@@ -35,6 +36,9 @@ class GridIterator:
         self._A_rho_1 = None
         self._A_rho_2 = None
         self._A_gamma_1 = None
+        self._AB_rho_2 = None
+        self._AB_rho_3 = None
+        self._AB_gamma_2 = None
 
     def __iter__(self):
         return self
@@ -63,6 +67,9 @@ class GridIterator:
         self._A_rho_1 = None
         self._A_rho_2 = None
         self._A_gamma_1 = None
+        self._AB_rho_2 = None
+        self._AB_rho_3 = None
+        self._AB_gamma_2 = None
         return
 
     @property
@@ -193,3 +200,58 @@ class GridIterator:
         if self._A_gamma_1 is None:
             self._A_gamma_1 = np.einsum("rg, Atrg -> Atg", self.rho_1, self.A_rho_2)
         return self._A_gamma_1
+
+    @property
+    def AB_rho_2(self):
+        if self._AB_rho_2 is None:
+            mol = self.mol
+            natm = mol.natm
+            ngrid = self.ngrid
+            self._AB_rho_2 = np.zeros((natm, natm, 3, 3, ngrid))
+            for A in range(natm):
+                _, _, p0A, p1A = mol.aoslice_by_atom()[A]
+                sA = slice(p0A, p1A)
+                self._AB_rho_2[A, A] += 2 * np.einsum("tsgu, gv, uv -> tsg",
+                                                      self.ao_2[:, :, :, sA], self.ao_0, self.D[sA])
+                for B in range(A + 1):
+                    _, _, p0B, p1B = mol.aoslice_by_atom()[B]
+                    sB = slice(p0B, p1B)
+                    self._AB_rho_2[A, B] += 2 * np.einsum("tgu, sgv, uv -> tsg",
+                                                          self.ao_1[:, :, sA], self.ao_1[:, :, sB], self.D[sA, sB])
+                    if A != B:
+                        self._AB_rho_2[B, A] = self._AB_rho_2[A, B].swapaxes(0, 1)
+        return self._AB_rho_2
+
+    @property
+    def AB_rho_3(self):
+        if self._AB_rho_3 is None:
+            mol = self.mol
+            natm = mol.natm
+            ngrid = self.ngrid
+            self._AB_rho_3 = np.zeros((natm, natm, 3, 3, 3, ngrid))
+            for A in range(natm):
+                _, _, p0A, p1A = mol.aoslice_by_atom()[A]
+                sA = slice(p0A, p1A)
+                self._AB_rho_3[A, A] += 2 * np.einsum("tsgu, rgv, uv -> tsrg",
+                                                      self.ao_2[:, :, :, sA], self.ao_1, self.D[sA])
+                self._AB_rho_3[A, A] += 2 * np.einsum("tsrgu, gv, uv -> tsrg",
+                                                      self.ao_3[:, :, :, :, sA], self.ao_0, self.D[sA])
+                for B in range(A + 1):
+                    _, _, p0B, p1B = mol.aoslice_by_atom()[B]
+                    sB = slice(p0B, p1B)
+                    self._AB_rho_3[A, B] += 2 * np.einsum("tgu, srgv, uv -> tsrg",
+                                                          self.ao_1[:, :, sA], self.ao_2[:, :, :, sB], self.D[sA, sB])
+                    self._AB_rho_3[A, B] += 2 * np.einsum("trgu, sgv, uv -> tsrg",
+                                                          self.ao_2[:, :, :, sA], self.ao_1[:, :, sB], self.D[sA, sB])
+                    if A != B:
+                        self._AB_rho_3[B, A] = self._AB_rho_3[A, B].swapaxes(0, 1)
+        return self._AB_rho_3
+
+    @property
+    def AB_gamma_2(self):
+        if self._AB_gamma_2 is None:
+            self._AB_gamma_2 = (
+                + 2 * np.einsum("Atrg, Bsrg -> ABtsg", self.A_rho_2, self.A_rho_2)
+                + 2 * np.einsum("rg, ABtsrg -> ABtsg", self.rho_1, self.AB_rho_3)
+            )
+        return self._AB_gamma_2
