@@ -245,10 +245,16 @@ class GGAHelper(HFHelper):
         if cx is None:
             cx = self.cx
         C = self.C
+        Co = self.Co
         kerh = self.kerh
         grdh = self.grdh
         natm = self.natm
         nao = self.nao
+        U_pi_fake = np.empty((natm, 3, nmo, nocc))
+        U_pi_fake[:, :, so, so] = - 0.5 * self.S_1_mo[:, :, so, so]
+        U_pi_fake[:, :, sv, so] = self.U_1_vo
+        dmU = C @ U_pi_fake @ Co.T
+        dmU += dmU.swapaxes(-1, -2)
 
         @timing
         def fx(mo1):
@@ -325,8 +331,36 @@ class GGAHelper(HFHelper):
 
                     ax_ao_contrib2 += ax_ao_contrib2.swapaxes(-1, -2)
 
+                    # U contribution to \partial_{A_t} A
+                    rho_U_0 = np.einsum("Atuv, gu, gv -> Atg", dmU, grdh.ao_0, grdh.ao_0)
+                    rho_U_1 = 2 * np.einsum("Atuv, rgu, gv -> Atrg", dmU, grdh.ao_1, grdh.ao_0)
+                    gamma_U_0 = 2 * np.einsum("rg, Atrg -> Atg", grdh.rho_1, rho_U_1)
+                    pdU_frr = kerh.frrr * rho_U_0 + kerh.frrg * gamma_U_0
+                    pdU_frg = kerh.frrg * rho_U_0 + kerh.frgg * gamma_U_0
+                    pdU_fgg = kerh.frgg * rho_U_0 + kerh.fggg * gamma_U_0
+                    pdU_fg = kerh.frg * rho_U_0 + kerh.fgg * gamma_U_0
+                    pdU_rho_1 = rho_U_1
+                    pdU_tmp_M_0 = (
+                        + np.einsum("Atg, g -> Atg", pdU_frr, rho_X_0)
+                        + 2 * np.einsum("Atg, wg, wg -> Atg", pdU_frg, grdh.rho_1, rho_X_1)
+                        + 2 * np.einsum("g, Atwg, wg -> Atg", kerh.frg, pdU_rho_1, rho_X_1)
+                    )
+                    pdU_tmp_M_1 = (
+                        + 4 * np.einsum("Atg, g, rg -> Atrg", pdU_frg, rho_X_0, grdh.rho_1)
+                        + 4 * np.einsum("g, g, Atrg -> Atrg", kerh.frg, rho_X_0, pdU_rho_1)
+                        + 8 * np.einsum("Atg, wg, wg, rg -> Atrg", pdU_fgg, grdh.rho_1, rho_X_1, grdh.rho_1)
+                        + 8 * np.einsum("g, Atwg, wg, rg -> Atrg", kerh.fgg, pdU_rho_1, rho_X_1, grdh.rho_1)
+                        + 8 * np.einsum("g, wg, wg, Atrg -> Atrg", kerh.fgg, grdh.rho_1, rho_X_1, pdU_rho_1)
+                        + 4 * np.einsum("Atg, rg -> Atrg", pdU_fg, rho_X_1)
+                    )
+
+                    ax_ao_contrib3 = np.zeros((natm, 3, nao, nao))
+                    ax_ao_contrib3 += np.einsum("Atg, gu, gv -> Atuv", pdU_tmp_M_0, grdh.ao_0, grdh.ao_0)
+                    ax_ao_contrib3 += np.einsum("Atrg, rgu, gv -> Atuv", pdU_tmp_M_1, grdh.ao_1, grdh.ao_0)
+                    ax_ao_contrib3 += ax_ao_contrib3.swapaxes(-1, -2)
+
                     # Finalize
-                    ax_final[:, B, :, s] = C[:, si].T @ (ax_ao_contrib1 + ax_ao_contrib2) @ C[:, sj]
+                    ax_final[:, B, :, s] = C[:, si].T @ (ax_ao_contrib1 + ax_ao_contrib2 + ax_ao_contrib3) @ C[:, sj]
             ax_final += super(GGAHelper, self).Ax1_Core(si, sj, sk, sl, cx=cx)(mo1)
             return ax_final
 
