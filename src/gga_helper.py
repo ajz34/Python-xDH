@@ -174,6 +174,7 @@ class GGAHelper(HFHelper):
         warnings.warn("Possibly this function is incorrect!")
         kerh = self.kerh
         grdh = self.grdh
+        natm = self.natm
 
         pd_fr = kerh.frr * grdh.A_rho_1 + kerh.frg * grdh.A_gamma_1
         pd_fg = kerh.frg * grdh.A_rho_1 + kerh.fgg * grdh.A_gamma_1
@@ -243,6 +244,7 @@ class GGAHelper(HFHelper):
         C = self.C
         kerh = self.kerh
         grdh = self.grdh
+        natm = self.natm
 
         @timing
         def fx(mo1):
