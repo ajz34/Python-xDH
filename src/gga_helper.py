@@ -247,7 +247,7 @@ class GGAHelper(HFHelper):
         C, Co = self.C, self.Co
         kerh = self.kerh
         grdh = self.grdh
-        natm, nao, nmo = self.natm, self.nao, self.nmo
+        natm, nao, nmo, nocc = self.natm, self.nao, self.nmo, self.nocc
         so, sv = self.so, self.sv
         U_pi_fake = np.empty((natm, 3, nmo, nocc))
         U_pi_fake[:, :, so, so] = - 0.5 * self.S_1_mo[:, :, so, so]
