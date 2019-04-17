@@ -35,27 +35,32 @@ def val_from_fchk(key, file_path):
 
 
 def timing(f):
+    return timing_level(2)(f)
+
+
+def timing_level(level):
     # Answer from https://codereview.stackexchange.com/a/169876
     #             https://stackoverflow.com/a/17065634
-    # Should be only using in class functions
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        start = time()
-        result = f(*args, **kwargs)
-        end = time()
-        if LOGLEVEL >= 2:
-            stack = inspect.stack()
-            the_class = "?"
-            the_method = "?"
-            try:
-                the_class = stack[1][0].f_locals["self"].__class__.__qualname__
-            except: pass
-            try:
+    # For parameterable decorators, refer to
+    #             https://stackoverflow.com/a/10176276
+    def actual_timing(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            start = time()
+            result = f(*args, **kwargs)
+            end = time()
+            if LOGLEVEL >= level:
+                stack = inspect.stack()
+                if "self" in stack[1][0].f_locals:
+                    the_class = stack[1][0].f_locals["self"].__class__.__qualname__ + "."
+                else:
+                    the_class = (stack[1][0].f_globals["__name__"] + ": ")
                 the_method = stack[1][0].f_code.co_name
-            except: pass
-            print(" {0:30s}, {1:50s} Elapsed time: {2:25.10f}".format(f.__qualname__, the_class + "." + the_method + "()", end-start))
-        return result
-    return wrapper
+                print(" {0:40s}, called by {1:40s}, Elapsed time: {2:17.10f} s"
+                      .format(f.__qualname__, the_class + the_method + "()", end-start))
+            return result
+        return wrapper
+    return actual_timing
 
 
 def gccollect(f):

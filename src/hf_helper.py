@@ -4,7 +4,7 @@ from pyscf.scf import _vhf
 import numpy as np
 from functools import partial
 import os, warnings, gc
-from utilities import timing, gccollect
+from utilities import timing, timing_level, gccollect
 
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
@@ -895,29 +895,30 @@ class HFHelper:
         Ax1_Core = self.Ax1_Core
         B_2_vo = (
             # line 1
-            np.einsum("ABtsuv, ua, vi -> ABtsai", self.F_2_ao, self.Cv, self.Co)
-            - np.einsum("ABtsai, i -> ABtsai", self.Xi_2[:, :, :, :, sv, so], eo)
-            - 0.5 * Ax0_Core(sv, so, so, so)(self.Xi_2[:, :, :, :, so, so])
+            0.5 * np.einsum("ABtsuv, ua, vi -> ABtsai", self.F_2_ao, self.Cv, self.Co)
+            - 0.5 * np.einsum("ABtsai, i -> ABtsai", self.Xi_2[:, :, :, :, sv, so], eo)
+            - 0.25 * Ax0_Core(sv, so, so, so)(self.Xi_2[:, :, :, :, so, so])
             # line 2
             + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
-            + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
+            # + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], F_1_mo[:, :, :, so])
             + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
-            + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
+            # + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], F_1_mo[:, :, :, sv])
             # line 3
             + np.einsum("Atpa, Bspi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
-            + np.einsum("Bspa, Atpi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
+            # + np.einsum("Bspa, Atpi, p -> ABtsai", U_1[:, :, :, sv], U_1[:, :, :, so], e)
             # line 4
-            + Ax0_Core(sv, so, sa, sa)(np.einsum("Atkm, Bslm -> ABtskl", U_1[:, :, :, so], U_1[:, :, :, so]))
+            + 0.5 * Ax0_Core(sv, so, sa, sa)(np.einsum("Atkm, Bslm -> ABtskl", U_1[:, :, :, so], U_1[:, :, :, so]))
             # line 5
             + np.einsum("Atpa, Bspi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
-            + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
+            # + np.einsum("Bspa, Atpi -> ABtsai", U_1[:, :, :, sv], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
             # line 6
             + np.einsum("Atpi, Bspa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
-            + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
+            # + np.einsum("Bspi, Atpa -> ABtsai", U_1[:, :, :, so], Ax0_Core(sa, sv, sa, so)(U_1[:, :, :, so]))
             # line 7
             + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so])
-            + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so]).transpose((1, 0, 3, 2, 4, 5))
+            # + Ax1_Core(sv, so, sa, so)(U_1[:, :, :, so]).transpose((1, 0, 3, 2, 4, 5))
         )
+        B_2_vo += B_2_vo.transpose((1, 0, 3, 2, 4, 5))
         return B_2_vo
 
     @timing
