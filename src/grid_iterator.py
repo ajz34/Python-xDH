@@ -72,6 +72,8 @@ class GridIterator:
         self._AB_gamma_2 = None
         return
 
+    # Property definition
+
     @property
     def ngrid(self):
         return self.weight.size
@@ -147,111 +149,236 @@ class GridIterator:
     @property
     def rho_01(self):
         if self._rho_01 is None:
-            self._rho_01 = np.einsum("uv, rgu, gv -> rg", self.D, self.ao[0:4], self.ao_0)
-            self._rho_01[1:4] *= 2
+            self._rho_01 = np.zeros((4, self.ngrid))
+            self._rho_01[0] = self.rho_0
+            self._rho_01[1:4] = self.rho_1
         return self._rho_01
 
     @property
     def rho_0(self):
         if self._rho_0 is None:
-            self._rho_0 = self.rho_01[0]
+            self._rho_0 = self.get_rho_0()
         return self._rho_0
 
     @property
     def rho_1(self):
         if self._rho_1 is None:
-            self._rho_1 = self.rho_01[1:4]
+            self._rho_1 = self.get_rho_1()
         return self._rho_1
 
     @property
     def rho_2(self):
         if self._rho_2 is None:
-            self._rho_2 = (
-                + 2 * np.einsum("uv, rgu, wgv -> rwg", self.D, self.ao_1, self.ao_1)
-                + 2 * np.einsum("uv, rwgu, gv -> rwg", self.D, self.ao_2, self.ao_0)
-            )
+            self._rho_2 = self.get_rho_2()
         return self._rho_2
 
     @property
     def A_rho_1(self):
         if self._A_rho_1 is None:
-            natm = self.mol.natm
-            self._A_rho_1 = np.zeros((natm, 3, self.ao.shape[1]))
-            for A in range(natm):
-                _, _, p0, p1 = self.mol.aoslice_by_atom()[A]
-                sA = slice(p0, p1)
-                self._A_rho_1[A] = - 2 * np.einsum("tgk, gl, kl -> tg ", self.ao_1[:, :, sA], self.ao_0, self.D[sA])
+            self._A_rho_1 = self.get_A_rho_1()
         return self._A_rho_1
 
     @property
     def A_rho_2(self):
         if self._A_rho_2 is None:
-            natm = self.mol.natm
-            self._A_rho_2 = np.zeros((natm, 3, 3, self.ao.shape[1]))
-            for A in range(natm):
-                _, _, p0, p1 = self.mol.aoslice_by_atom()[A]
-                sA = slice(p0, p1)
-                self._A_rho_2[A] = - 2 * np.einsum("trgk, gl, kl -> trg", self.ao_2[:, :, :, sA], self.ao_0, self.D[sA])
-                self._A_rho_2[A] += - 2 * np.einsum("tgk, rgl, kl -> trg", self.ao_1[:, :, sA], self.ao_1, self.D[sA])
+            self._A_rho_2 = self.get_A_rho_2()
         return self._A_rho_2
 
     @property
     def A_gamma_1(self):
         if self._A_gamma_1 is None:
-            self._A_gamma_1 = np.einsum("rg, Atrg -> Atg", self.rho_1, self.A_rho_2)
+            self._A_gamma_1 = self.get_A_gamma_1()
         return self._A_gamma_1
 
     @property
     def AB_rho_2(self):
         if self._AB_rho_2 is None:
-            mol = self.mol
-            natm = mol.natm
-            ngrid = self.ngrid
-            self._AB_rho_2 = np.zeros((natm, natm, 3, 3, ngrid))
-            for A in range(natm):
-                _, _, p0A, p1A = mol.aoslice_by_atom()[A]
-                sA = slice(p0A, p1A)
-                self._AB_rho_2[A, A] += 2 * np.einsum("tsgu, gv, uv -> tsg",
-                                                      self.ao_2[:, :, :, sA], self.ao_0, self.D[sA])
-                for B in range(A + 1):
-                    _, _, p0B, p1B = mol.aoslice_by_atom()[B]
-                    sB = slice(p0B, p1B)
-                    self._AB_rho_2[A, B] += 2 * np.einsum("tgu, sgv, uv -> tsg",
-                                                          self.ao_1[:, :, sA], self.ao_1[:, :, sB], self.D[sA, sB])
-                    if A != B:
-                        self._AB_rho_2[B, A] = self._AB_rho_2[A, B].swapaxes(0, 1)
+            self._AB_rho_2 = self.get_AB_rho_2()
         return self._AB_rho_2
 
     @property
     def AB_rho_3(self):
         if self._AB_rho_3 is None:
-            mol = self.mol
-            natm = mol.natm
-            ngrid = self.ngrid
-            self._AB_rho_3 = np.zeros((natm, natm, 3, 3, 3, ngrid))
-            for A in range(natm):
-                _, _, p0A, p1A = mol.aoslice_by_atom()[A]
-                sA = slice(p0A, p1A)
-                self._AB_rho_3[A, A] += 2 * np.einsum("tsgu, rgv, uv -> tsrg",
-                                                      self.ao_2[:, :, :, sA], self.ao_1, self.D[sA])
-                self._AB_rho_3[A, A] += 2 * np.einsum("tsrgu, gv, uv -> tsrg",
-                                                      self.ao_3[:, :, :, :, sA], self.ao_0, self.D[sA])
-                for B in range(A + 1):
-                    _, _, p0B, p1B = mol.aoslice_by_atom()[B]
-                    sB = slice(p0B, p1B)
-                    self._AB_rho_3[A, B] += 2 * np.einsum("tgu, srgv, uv -> tsrg",
-                                                          self.ao_1[:, :, sA], self.ao_2[:, :, :, sB], self.D[sA, sB])
-                    self._AB_rho_3[A, B] += 2 * np.einsum("trgu, sgv, uv -> tsrg",
-                                                          self.ao_2[:, :, :, sA], self.ao_1[:, :, sB], self.D[sA, sB])
-                    if A != B:
-                        self._AB_rho_3[B, A] = self._AB_rho_3[A, B].swapaxes(0, 1)
+            self._AB_rho_3 = self.get_AB_rho_3()
         return self._AB_rho_3
 
     @property
     def AB_gamma_2(self):
         if self._AB_gamma_2 is None:
-            self._AB_gamma_2 = (
-                + 2 * np.einsum("Atrg, Bsrg -> ABtsg", self.A_rho_2, self.A_rho_2)
-                + 2 * np.einsum("rg, ABtsrg -> ABtsg", self.rho_1, self.AB_rho_3)
-            )
+            self._AB_gamma_2 = self.get_AB_rho_2()
         return self._AB_gamma_2
+
+    # Function definition
+
+    def mol_slice(self, atm_id):
+        _, _, p0, p1 = self.mol.aoslice_by_atom()[atm_id]
+        return slice(p0, p1)
+
+    def get_rho_0(self, D=None):
+        """
+        Generate density grid form generalized density matrix.
+
+        .. math::
+
+            \\rho = D_{\\mu \\nu} \\phi_\\mu \\phi_\\nu
+
+        Parameters
+        ----------
+        D: np.ndarray or None
+
+        Returns
+        -------
+        np.ndarray
+        """
+        if D is None:
+            D = self.D
+        rho_0 = np.einsum("uv, gu, gv -> g", D, self.ao_0, self.ao_0)
+        return rho_0
+
+    def get_rho_1(self, D=None):
+        """
+        Generate first order density derivative grid form generalized density matrix.
+
+        .. math::
+
+            \\rho_r = 2 D_{\\mu \\nu} \\phi_{r \\mu} \\phi_\\nu
+
+        Parameters
+        ----------
+        D: np.ndarray or None
+
+        Returns
+        -------
+        np.ndarray
+        """
+        if D is None:
+            D = self.D
+        rho_1 = 2 * np.einsum("uv, rgu, gv -> rg", D, self.ao_1, self.ao_0)
+        return rho_1
+
+    def get_rho_2(self, D=None):
+        """
+        Generate second order density derivative grid form generalized density matrix.
+
+        .. math::
+
+            \\rho_{rw} = 2 D_{\\mu \\nu} (\\phi_{rw \\mu} \\phi_\\nu + \\phi_{r \\mu} \\phi_{w \\nu})
+
+        Parameters
+        ----------
+        D: np.ndarray or None
+
+        Returns
+        -------
+        np.ndarray
+        """
+        if D is None:
+            D = self.D
+        rho_2 = (
+            + 2 * np.einsum("uv, rwgu, gv -> rwg", D, self.ao_2, self.ao_0)
+            + 2 * np.einsum("uv, rgu, wgv -> rwg", D, self.ao_1, self.ao_1)
+        )
+        return rho_2
+
+    def get_A_rho_1(self, D=None):
+        if D is None:
+            D = self.D
+        natm = self.mol.natm
+        A_rho_1 = np.zeros((natm, 3, self.ngrid))
+        for A in range(natm):
+            sA = self.mol_slice(A)
+            A_rho_1[A] = - 2 * np.einsum("tgk, gl, kl -> tg ", self.ao_1[:, :, sA], self.ao_0, D[sA])
+        return A_rho_1
+
+    def get_A_rho_2(self, D=None):
+        if D is None:
+            D = self.D
+        natm = self.mol.natm
+        A_rho_2 = np.zeros((natm, 3, 3, self.ngrid))
+        for A in range(natm):
+            sA = self.mol_slice(A)
+            A_rho_2[A] = - 2 * np.einsum("trgk, gl, kl -> trg", self.ao_2[:, :, :, sA], self.ao_0, D[sA])
+            A_rho_2[A] += - 2 * np.einsum("tgk, rgl, kl -> trg", self.ao_1[:, :, sA], self.ao_1, D[sA])
+        return A_rho_2
+
+    def get_A_gamma_1(self):
+        A_gamma_1 = np.einsum("rg, Atrg -> Atg", self.rho_1, self.A_rho_2)
+        return A_gamma_1
+
+    def get_AB_rho_2(self, D=None):
+        if D is None:
+            D = self.D
+        mol = self.mol
+        natm = mol.natm
+        AB_rho_2 = np.zeros((natm, natm, 3, 3, self.ngrid))
+        for A in range(natm):
+            sA = self.mol_slice(A)
+            AB_rho_2[A, A] += 2 * np.einsum("tsgu, gv, uv -> tsg", self.ao_2[:, :, :, sA], self.ao_0, D[sA])
+            for B in range(A + 1):
+                sB = self.mol_slice(B)
+                AB_rho_2[A, B] += 2 * np.einsum("tgu, sgv, uv -> tsg",
+                                                self.ao_1[:, :, sA], self.ao_1[:, :, sB], D[sA, sB])
+                if A != B:
+                    AB_rho_2[B, A] = AB_rho_2[A, B].swapaxes(0, 1)
+        return AB_rho_2
+
+    def get_AB_rho_3(self, D=None):
+        if D is None:
+            D = self.D
+        mol = self.mol
+        natm = mol.natm
+        AB_rho_3 = np.zeros((natm, natm, 3, 3, 3, self.ngrid))
+        for A in range(natm):
+            sA = self.mol_slice(A)
+            AB_rho_3[A, A] += 2 * np.einsum("tsgu, rgv, uv -> tsrg", self.ao_2[:, :, :, sA], self.ao_1, D[sA])
+            AB_rho_3[A, A] += 2 * np.einsum("tsrgu, gv, uv -> tsrg", self.ao_3[:, :, :, :, sA], self.ao_0, D[sA])
+            for B in range(A + 1):
+                _, _, p0B, p1B = mol.aoslice_by_atom()[B]
+                sB = slice(p0B, p1B)
+                AB_rho_3[A, B] += 2 * np.einsum("tgu, srgv, uv -> tsrg",
+                                                self.ao_1[:, :, sA], self.ao_2[:, :, :, sB], D[sA, sB])
+                AB_rho_3[A, B] += 2 * np.einsum("trgu, sgv, uv -> tsrg",
+                                                self.ao_2[:, :, :, sA], self.ao_1[:, :, sB], D[sA, sB])
+                if A != B:
+                    AB_rho_3[B, A] = AB_rho_3[A, B].swapaxes(0, 1)
+        return AB_rho_3
+
+    def get_AB_gamma_2(self):
+        AB_gamma_2 = (
+            + 2 * np.einsum("Atrg, Bsrg -> ABtsg", self.A_rho_2, self.A_rho_2)
+            + 2 * np.einsum("rg, ABtsrg -> ABtsg", self.rho_1, self.AB_rho_3)
+        )
+        return AB_gamma_2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
