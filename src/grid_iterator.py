@@ -60,6 +60,7 @@ class GridIterator:
         self._ao_1 = None
         self._ao_2 = None
         self._ao_2T = None
+        self._ao_3 = None
         self._ao_3T = None
         self._rho_01 = None
         self._rho_0 = None

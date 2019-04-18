@@ -6,7 +6,6 @@ from functools import partial
 import os, warnings, gc
 from utilities import timing, timing_level, gccollect
 
-
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
@@ -614,7 +613,7 @@ class HFHelper:
             eri2[:, :, sA, :, sB] += np.einsum("Tijkl -> Tjilk", int2e_ip1ip2[:, sA, :, sB])
             eri2[:, :, sB, :, sA] += np.einsum("Tijkl -> Tlkji", int2e_ip1ip2[:, sA, :, sB])
 
-            return eri2.reshape(3, 3, nao, nao, nao, nao)
+            return eri2.reshape((3, 3, nao, nao, nao, nao))
 
         return [[get_eri2(A, B) for B in range(natm)] for A in range(natm)]
 
@@ -832,7 +831,7 @@ class HFHelper:
             self.scf_eng.mo_occ,
             B_1[:, :, sv, so].reshape(-1, self.nvir, self.nocc),
             max_cycle=100,
-            tol=1e-20,
+            tol=1e-11,
             hermi=False
         )[0]
         U_1_ai.shape = (self.natm, 3, self.nvir, self.nocc)
@@ -933,7 +932,7 @@ class HFHelper:
             self.scf_eng.mo_occ,
             self.B_2_vo.reshape(-1, self.nvir, self.nocc),
             max_cycle=100,
-            tol=1e-15,
+            tol=1e-11,
             hermi=False
         )[0]
         U_2_vo.shape = (self.natm, self.natm, 3, 3, self.nvir, self.nocc)

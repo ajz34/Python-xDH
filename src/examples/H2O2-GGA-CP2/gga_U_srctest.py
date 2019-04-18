@@ -33,7 +33,7 @@ def main():
     grids.build()
 
     scfh = GGAHelper(mol, "b3lypg", grids)
-    scfh.get_kerh(deriv=3)
+    # scfh.get_kerh(deriv=3)
 
     with open('num_C_U1.dat', 'rb') as f:
         pickle_load = pickle.load(f)

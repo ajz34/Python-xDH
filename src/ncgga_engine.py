@@ -53,7 +53,7 @@ class NCGGAEngine:
         scfh, nch = self.scfh, self.nch
         so, sv = scfh.so, scfh.sv
         Z_1 = scf.cphf.solve(scfh.Ax0_Core(sv, so, sv, so), scfh.e, scfh.mo_occ, nch.F_0_mo[sv, so],
-                             max_cycle=100, tol=1e-20)[0]
+                             max_cycle=100, tol=1e-11)[0]
 
         # Test whether converged
         conv = (

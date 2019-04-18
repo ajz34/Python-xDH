@@ -1,6 +1,3 @@
-import sys
-sys.path.append('../../')
-
 from hf_helper import HFHelper
 from gga_helper import GGAHelper
 from ncgga_engine import NCGGAEngine
