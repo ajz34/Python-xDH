@@ -172,73 +172,84 @@ class GGAHelper(HFHelper):
     @gccollect
     def _get_F_2_ao_GGAcontrib(self):
         warnings.warn("Possibly this function is incorrect!")
-        kerh = self.kerh
-        grdh = self.grdh
         natm = self.natm
         nao = self.nao
 
-        pd_fr = kerh.frr * grdh.A_rho_1 + kerh.frg * grdh.A_gamma_1
-        pd_fg = kerh.frg * grdh.A_rho_1 + kerh.fgg * grdh.A_gamma_1
-        pd_rho_1 = grdh.A_rho_2
-        pd_frr = kerh.frrr * grdh.A_rho_1 + kerh.frrg * grdh.A_gamma_1
-        pd_frg = kerh.frrg * grdh.A_rho_1 + kerh.frgg * grdh.A_gamma_1
-        pd_fgg = kerh.frgg * grdh.A_rho_1 + kerh.fggg * grdh.A_gamma_1
-        pdpd_fr = (
-            + np.einsum("Bsg, Atg -> ABtsg", pd_frr, grdh.A_rho_1)
-            + np.einsum("Bsg, Atg -> ABtsg", pd_frg, grdh.A_gamma_1)
-            + kerh.frr * grdh.AB_rho_2 + kerh.frg * grdh.AB_gamma_2
-        )
-        pdpd_fg = (
-            + np.einsum("Bsg, Atg -> ABtsg", pd_frg, grdh.A_rho_1)
-            + np.einsum("Bsg, Atg -> ABtsg", pd_fgg, grdh.A_gamma_1)
-            + kerh.frg * grdh.AB_rho_2 + kerh.fgg * grdh.AB_gamma_2
-        )
-        pdpd_rho_1 = grdh.AB_rho_3
+        F_2_ao_GGA = np.zeros((natm, natm, 3, 3, nao, nao))
 
-        F_2_ao_GGA_contrib1 = (
-            + 0.5 * np.einsum("ABtsg, gu, gv -> ABtsuv", pdpd_fr, grdh.ao_0, grdh.ao_0)
-            + 2 * np.einsum("ABtsg, rg, rgu, gv -> ABtsuv", pdpd_fg, grdh.rho_1, grdh.ao_1, grdh.ao_0)
-            + 2 * np.einsum("Atg, Bsrg, rgu, gv -> ABtsuv", pd_fg, pd_rho_1, grdh.ao_1, grdh.ao_0)
-            + 2 * np.einsum("Bsg, Atrg, rgu, gv -> ABtsuv", pd_fg, pd_rho_1, grdh.ao_1, grdh.ao_0)
-            + 2 * np.einsum("g, ABtsrg, rgu, gv -> ABtsuv", kerh.fg, pdpd_rho_1, grdh.ao_1, grdh.ao_0)
-        )
-        F_2_ao_GGA_contrib1 += F_2_ao_GGA_contrib1.swapaxes(-1, -2)
+        grdit = GridIterator(self.mol, self.grids, self.D, deriv=3, memory=500)
+        for grdh in grdit:
+            kerh = KernelHelper(grdh, self.xc, deriv=3)
+            pd_fr = kerh.frr * grdh.A_rho_1 + kerh.frg * grdh.A_gamma_1
+            pd_fg = kerh.frg * grdh.A_rho_1 + kerh.fgg * grdh.A_gamma_1
+            pd_rho_1 = grdh.A_rho_2
+            pd_frr = kerh.frrr * grdh.A_rho_1 + kerh.frrg * grdh.A_gamma_1
+            pd_frg = kerh.frrg * grdh.A_rho_1 + kerh.frgg * grdh.A_gamma_1
+            pd_fgg = kerh.frgg * grdh.A_rho_1 + kerh.fggg * grdh.A_gamma_1
+            pdpd_fr = (
+                + np.einsum("Bsg, Atg -> ABtsg", pd_frr, grdh.A_rho_1)
+                + np.einsum("Bsg, Atg -> ABtsg", pd_frg, grdh.A_gamma_1)
+                + kerh.frr * grdh.AB_rho_2 + kerh.frg * grdh.AB_gamma_2
+            )
+            pdpd_fg = (
+                + np.einsum("Bsg, Atg -> ABtsg", pd_frg, grdh.A_rho_1)
+                + np.einsum("Bsg, Atg -> ABtsg", pd_fgg, grdh.A_gamma_1)
+                + kerh.frg * grdh.AB_rho_2 + kerh.fgg * grdh.AB_gamma_2
+            )
+            pdpd_rho_1 = grdh.AB_rho_3
 
-        tmp_contrib = (
-            - np.einsum("Bsg, tgu, gv -> Btsuv", pd_fr, grdh.ao_1, grdh.ao_0)
-            - 2 * np.einsum("Bsg, rg, tgu, rgv -> Btsuv", pd_fg, grdh.rho_1, grdh.ao_1, grdh.ao_1)
-            - 2 * np.einsum("Bsg, rg, trgu, gv -> Btsuv", pd_fg, grdh.rho_1, grdh.ao_2, grdh.ao_0)
-            - 2 * np.einsum("g, Bsrg, tgu, rgv -> Btsuv", kerh.fg, pd_rho_1, grdh.ao_1, grdh.ao_1)
-            - 2 * np.einsum("g, Bsrg, trgu, gv -> Btsuv", kerh.fg, pd_rho_1, grdh.ao_2, grdh.ao_0)
-        )
-        F_2_ao_GGA_contrib2 = np.zeros((natm, natm, 3, 3, nao, nao))
-        for A in range(natm):
-            sA = self.mol_slice(A)
-            F_2_ao_GGA_contrib2[A, :, :, :, sA] += tmp_contrib[:, :, :, sA]
-        F_2_ao_GGA_contrib2 += F_2_ao_GGA_contrib2.transpose((0, 1, 2, 3, 5, 4))
-        F_2_ao_GGA_contrib2 += F_2_ao_GGA_contrib2.transpose((1, 0, 3, 2, 4, 5))
+            # Contrib 1
+            contrib1 = (
+                + 0.5 * np.einsum("ABtsg, gu, gv -> ABtsuv", pdpd_fr, grdh.ao_0, grdh.ao_0)
+                + 2 * np.einsum("ABtsg, rg, rgu, gv -> ABtsuv", pdpd_fg, grdh.rho_1, grdh.ao_1, grdh.ao_0)
+                + 2 * np.einsum("Atg, Bsrg, rgu, gv -> ABtsuv", pd_fg, pd_rho_1, grdh.ao_1, grdh.ao_0)
+                + 2 * np.einsum("Bsg, Atrg, rgu, gv -> ABtsuv", pd_fg, pd_rho_1, grdh.ao_1, grdh.ao_0)
+                + 2 * np.einsum("g, ABtsrg, rgu, gv -> ABtsuv", kerh.fg, pdpd_rho_1, grdh.ao_1, grdh.ao_0)
+            )
+            contrib1 += contrib1.swapaxes(-1, -2)
+            F_2_ao_GGA += contrib1
 
-        F_2_ao_GGA_contrib3 = np.zeros((natm, natm, 3, 3, nao, nao))
+            # Contrib 2
+            tmp_contrib = (
+                - np.einsum("Bsg, tgu, gv -> Btsuv", pd_fr, grdh.ao_1, grdh.ao_0)
+                - 2 * np.einsum("Bsg, rg, tgu, rgv -> Btsuv", pd_fg, grdh.rho_1, grdh.ao_1, grdh.ao_1)
+                - 2 * np.einsum("Bsg, rg, trgu, gv -> Btsuv", pd_fg, grdh.rho_1, grdh.ao_2, grdh.ao_0)
+                - 2 * np.einsum("g, Bsrg, tgu, rgv -> Btsuv", kerh.fg, pd_rho_1, grdh.ao_1, grdh.ao_1)
+                - 2 * np.einsum("g, Bsrg, trgu, gv -> Btsuv", kerh.fg, pd_rho_1, grdh.ao_2, grdh.ao_0)
+            )
+            contrib2 = np.zeros((natm, natm, 3, 3, nao, nao))
+            for A in range(natm):
+                sA = self.mol_slice(A)
+                contrib2[A, :, :, :, sA] += tmp_contrib[:, :, :, sA]
+            contrib2 += contrib2.transpose((0, 1, 2, 3, 5, 4))
+            contrib2 += contrib2.transpose((1, 0, 3, 2, 4, 5))
+            F_2_ao_GGA += contrib2
 
-        tmp_contrib = (
-            + np.einsum("g, tsgu, gv -> tsuv", kerh.fr, grdh.ao_2, grdh.ao_0)
-            + 2 * np.einsum("g, rg, tsrgu, gv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_3, grdh.ao_0)
-            + 2 * np.einsum("g, rg, tsgu, rgv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_2, grdh.ao_1)
-        )
-        for A in range(natm):
-            sA = self.mol_slice(A)
-            F_2_ao_GGA_contrib3[A, A, :, :, sA] += tmp_contrib[:, :, sA]
-        tmp_contrib = (
-            + np.einsum("g, tgu, sgv -> tsuv", kerh.fr, grdh.ao_1, grdh.ao_1)
-            + 2 * np.einsum("g, rg, trgu, sgv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_2, grdh.ao_1)
-            + 2 * np.einsum("g, rg, tgu, srgv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_1, grdh.ao_2)
-        )
-        for A in range(natm):
-            for B in range(natm):
-                sA, sB = self.mol_slice(A), self.mol_slice(B)
-                F_2_ao_GGA_contrib3[A, B, :, :, sA, sB] += tmp_contrib[:, :, sA, sB]
-        F_2_ao_GGA_contrib3 += F_2_ao_GGA_contrib3.swapaxes(-1, -2)
-        return F_2_ao_GGA_contrib1 + F_2_ao_GGA_contrib2 + F_2_ao_GGA_contrib3
+            # Contrib 3
+            contrib3 = np.zeros((natm, natm, 3, 3, nao, nao))
+
+            tmp_contrib = (
+                + np.einsum("g, tsgu, gv -> tsuv", kerh.fr, grdh.ao_2, grdh.ao_0)
+                + 2 * np.einsum("g, rg, tsrgu, gv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_3, grdh.ao_0)
+                + 2 * np.einsum("g, rg, tsgu, rgv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_2, grdh.ao_1)
+            )
+            for A in range(natm):
+                sA = self.mol_slice(A)
+                contrib3[A, A, :, :, sA] += tmp_contrib[:, :, sA]
+            tmp_contrib = (
+                + np.einsum("g, tgu, sgv -> tsuv", kerh.fr, grdh.ao_1, grdh.ao_1)
+                + 2 * np.einsum("g, rg, trgu, sgv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_2, grdh.ao_1)
+                + 2 * np.einsum("g, rg, tgu, srgv -> tsuv", kerh.fg, grdh.rho_1, grdh.ao_1, grdh.ao_2)
+            )
+            for A in range(natm):
+                for B in range(natm):
+                    sA, sB = self.mol_slice(A), self.mol_slice(B)
+                    contrib3[A, B, :, :, sA, sB] += tmp_contrib[:, :, sA, sB]
+            contrib3 += contrib3.swapaxes(-1, -2)
+            F_2_ao_GGA += contrib3
+
+        # Finalize
+        return F_2_ao_GGA
 
     def Ax1_Core(self, si, sj, sk, sl, cx=None):
         warnings.warn("Possibly this function is incorrect!")

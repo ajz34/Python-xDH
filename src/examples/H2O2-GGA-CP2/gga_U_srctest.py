@@ -1,9 +1,3 @@
-
-# coding: utf-8
-
-# In[ ]:
-
-
 import numpy as np
 from pyscf import gto, dft
 from functools import partial

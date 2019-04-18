@@ -1,5 +1,6 @@
 from pyscf import dft, gto
 import pyscf.dft.numint
+from pyscf.dft import xcfun
 import numpy as np
 from functools import partial
 import os
@@ -7,7 +8,7 @@ import os
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
-dft.numint.libxc = dft.xcfun
+dft.numint.libxc = xcfun
 
 
 class GridIterator:
@@ -18,7 +19,7 @@ class GridIterator:
         self.grids = grids  # type: dft.Grids
         self.D = D
         self.ni = dft.numint.NumInt()
-        self.batch = self.ni.block_loop(mol, grids, mol.nao, deriv, self.mol.max_memory)
+        self.batch = self.ni.block_loop(mol, grids, mol.nao, deriv, memory)
 
         self._ao = None
         self._ngrid = None
@@ -205,7 +206,7 @@ class GridIterator:
     @property
     def AB_gamma_2(self):
         if self._AB_gamma_2 is None:
-            self._AB_gamma_2 = self.get_AB_rho_2()
+            self._AB_gamma_2 = self.get_AB_gamma_2()
         return self._AB_gamma_2
 
     # Function definition
@@ -302,7 +303,7 @@ class GridIterator:
         return A_rho_2
 
     def get_A_gamma_1(self):
-        A_gamma_1 = np.einsum("rg, Atrg -> Atg", self.rho_1, self.A_rho_2)
+        A_gamma_1 = 2 * np.einsum("rg, Atrg -> Atg", self.rho_1, self.A_rho_2)
         return A_gamma_1
 
     def get_AB_rho_2(self, D=None):
@@ -351,34 +352,46 @@ class GridIterator:
         return AB_gamma_2
 
 
+if __name__ == "__main__":
 
+    from grid_helper import GridHelper
 
+    mol = gto.Mole()
+    mol.atom = """
+    O  0.0  0.0  0.0
+    H  1.5  0.0  0.0
+    H  0.0  0.0  1.5
+    """
+    mol.basis = "6-31G"
+    mol.verbose = 0
+    mol.build()
 
+    nmo = nao = mol.nao
+    natm = mol.natm
+    nocc = mol.nelec[0]
+    nvir = nmo - nocc
+    so = slice(0, nocc)
+    sv = slice(nocc, nmo)
+    sa = slice(0, nmo)
 
+    grids = dft.gen_grid.Grids(mol)
+    grids.atom_grid = (75, 302)
+    grids.becke_scheme = dft.gen_grid.stratmann
+    grids.build()
 
+    dmX = np.random.random((nao, nao))
+    dmX += dmX.T
+    grdh = GridHelper(mol, grids, dmX)
+    grdit = GridIterator(mol, grids, dmX, deriv=3, memory=3000)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    # Should be able to save all grids in memory
+    for grdi in grdit:
+        print(np.allclose(grdh.rho_0, grdi.rho_0))
+        print(np.allclose(grdh.rho_1, grdi.rho_1))
+        print(np.allclose(grdh.rho_2, grdi.rho_2))
+        print(np.allclose(grdh.A_rho_1, grdi.A_rho_1))
+        print(np.allclose(grdh.A_rho_2, grdi.A_rho_2))
+        print(np.allclose(grdh.AB_rho_2, grdi.AB_rho_2))
+        print(np.allclose(grdh.AB_rho_3, grdi.AB_rho_3))
+        print(np.allclose(grdh.A_gamma_1, grdi.A_gamma_1))
+        print(np.allclose(grdh.AB_gamma_2, grdi.AB_gamma_2))
