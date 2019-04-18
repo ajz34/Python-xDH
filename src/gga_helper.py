@@ -188,7 +188,7 @@ class GGAHelper(HFHelper):
 
         F_2_ao_GGA = np.zeros((natm, natm, 3, 3, nao, nao))
 
-        grdit = GridIterator(self.mol, self.grids, self.D, deriv=3, memory=500)
+        grdit = GridIterator(self.mol, self.grids, self.D, deriv=3)
         for grdh in grdit:
             kerh = KernelHelper(grdh, self.xc, deriv=3)
             pd_fr = kerh.frr * grdh.A_rho_1 + kerh.frg * grdh.A_gamma_1
@@ -283,7 +283,7 @@ class GGAHelper(HFHelper):
                 for s in range(dm1.shape[1]):
                     dmX = dm1[B, s]
 
-                    grdit = GridIterator(self.mol, self.grids, self.D, deriv=3, memory=500)
+                    grdit = GridIterator(self.mol, self.grids, self.D, deriv=3)
                     for grdh in grdit:
                         kerh = KernelHelper(grdh, self.xc, deriv=3)
                         # Define some kernel and density derivative alias
