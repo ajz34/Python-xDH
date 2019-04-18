@@ -53,7 +53,7 @@ class NCGGAEngine:
         scfh, nch = self.scfh, self.nch
         so, sv = scfh.so, scfh.sv
         Z_1 = scf.cphf.solve(scfh.Ax0_Core(sv, so, sv, so), scfh.e, scfh.mo_occ, nch.F_0_mo[sv, so],
-                             max_cycle=100, tol=1e-11)[0]
+                             max_cycle=100, tol=1e-13)[0]
 
         # Test whether converged
         conv = (
@@ -61,7 +61,7 @@ class NCGGAEngine:
             + scfh.Ax0_Core(sv, so, sv, so)(Z_1)
             + nch.F_0_mo[sv, so]
         )
-        if abs(conv).max() > 1e-9:
+        if abs(conv).max() > 1e-8:
             msg = "\nget_E_1: CP-HF not converged!\nMaximum deviation: " + str(abs(conv).max())
             warnings.warn(msg)
 

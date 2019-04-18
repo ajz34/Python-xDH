@@ -4,7 +4,7 @@ from pyscf.scf import _vhf
 import numpy as np
 from functools import partial
 import os, warnings, gc
-from utilities import timing, timing_level, gccollect
+from utilities import timing, gccollect
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -831,7 +831,7 @@ class HFHelper:
             self.scf_eng.mo_occ,
             B_1[:, :, sv, so].reshape(-1, self.nvir, self.nocc),
             max_cycle=100,
-            tol=1e-11,
+            tol=1e-13,
             hermi=False
         )[0]
         U_1_ai.shape = (self.natm, 3, self.nvir, self.nocc)
@@ -842,8 +842,9 @@ class HFHelper:
             + self.Ax0_Core(sv, so, sv, so)(U_1_ai)
             + self.B_1[:, :, sv, so]
         )
-        if abs(conv).max() > 1e-9:
-            warnings.warn("U_1: CP-HF not converged!")
+        if abs(conv).max() > 1e-8:
+            msg = "\nget_E_1: CP-HF not converged well!\nMaximum deviation: " + str(abs(conv).max())
+            warnings.warn(msg)
 
         if not total_u:
             self._U_1_vo = U_1_ai

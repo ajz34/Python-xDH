@@ -109,6 +109,8 @@ class GGAHelper(HFHelper):
     def Ax0_Core(self, si, sj, sk, sl, cx=None, reshape=True):
         C = self.C
         nao = self.mol.nao
+        sij_none = si is None and sj is None
+        skl_none = sk is None and sl is None
         if cx is None:
             cx = self.cx
 
@@ -118,8 +120,13 @@ class GGAHelper(HFHelper):
             mo1 = mo1_.copy()  # type: np.ndarray
             shape1 = list(mo1.shape)
             mo1.shape = (-1, shape1[-2], shape1[-1])
-            dm1 = C[:, sk] @ mo1 @ C[:, sl].T
-            dm1 += dm1.transpose(0, 2, 1)
+            if skl_none:
+                dm1 = mo1
+                if dm1.shape[-2] != self.nao or dm1.shape[-1] != self.nao:
+                    raise ValueError("if `sk`, `sl` is None, we assume that mo1 passed in is an AO-based matrix!")
+            else:
+                dm1 = C[:, sk] @ mo1 @ C[:, sl].T
+            dm1 += dm1.transpose((0, 2, 1))
             ax_ao = np.empty((dm1.shape[0], nao, nao))
             for idx, dmX in enumerate(dm1):
                 ax_ao[idx] = (
@@ -149,7 +156,10 @@ class GGAHelper(HFHelper):
                     )
                 gc.collect()
             ax_ao += ax_ao.swapaxes(-1, -2)
-            r = C[:, si].T @ ax_ao @ C[:, sj]
+            if sij_none:
+                r = ax_ao
+            else:
+                r = C[:, si].T @ ax_ao @ C[:, sj]
 
             if reshape:
                 shape1.pop()

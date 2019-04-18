@@ -47,8 +47,8 @@ def get_nc(mol, grids):
 def get_numeric(mol, grids):
 
     d = {
-        "E_0": NumericDiff(mol, lambda m: get_numeric_0(m, grids), interval=1e-4).get_numdif(),
-        "E_1": NumericDiff(mol, lambda m: get_numeric_1(m, grids), interval=1e-4, deriv=2).get_numdif(),
+        "E_0_diff": NumericDiff(mol, lambda m: get_numeric_0(m, grids), interval=1e-4).get_numdif(),
+        "E_1_diff": NumericDiff(mol, lambda m: get_numeric_1(m, grids), interval=1e-4, deriv=2).get_numdif(),
     }
     with open("H2O2-bak-numeric.dat", "wb") as f:
         pickle.dump(d, f, pickle.HIGHEST_PROTOCOL)
@@ -77,10 +77,10 @@ def main():
     d_nc = get_nc(mol, grids)
     d_num = get_numeric(mol, grids)
 
-    print("E_0 diff max: ", (d_nc["E_0"] - d_num["E_0"]).max())
-    print("E_0 diff min: ", (d_nc["E_0"] - d_num["E_0"]).min())
-    print("E_1 diff max: ", (d_nc["E_1"] - d_num["E_1"]).max())
-    print("E_1 diff min: ", (d_nc["E_1"] - d_num["E_1"]).min())
+    print("E_0 diff max: ", (d_nc["E_1"] - d_num["E_0_diff"]).max())
+    print("E_0 diff min: ", (d_nc["E_1"] - d_num["E_0_diff"]).min())
+    print("E_1 diff max: ", (d_nc["E_2"] - d_num["E_1_diff"]).max())
+    print("E_1 diff min: ", (d_nc["E_2"] - d_num["E_1_diff"]).min())
 
 
 if __name__ == "__main__":
