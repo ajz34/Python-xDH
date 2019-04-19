@@ -27,20 +27,13 @@ class HFHelper:
         self.scf_grad = None  # type: grad.rhf.Gradients
         self.scf_hess = None  # type: hessian.rhf.Hessian
         # From SCF calculation
+        self._C = None
         self.C = None
-        self.nmo = None
-        self.nao = None
-        self.nocc = None
-        self.nvir = None
+        self._mo_occ = None
         self.mo_occ = None
-        self.sa = None
-        self.so = None
-        self.sv = None
+        self._e = None
         self.e = None
-        self.eo = None
-        self.ev = None
-        self.Co = None
-        self.Cv = None
+        self._D = None
         self.D = None
         self._F_0_ao = None
         self._F_0_mo = None
@@ -100,23 +93,102 @@ class HFHelper:
 
     def initialization_scf(self):
         self.C = self.scf_eng.mo_coeff
-        self.nmo = self.C.shape[1]
-        self.nao = self.C.shape[0]
-        self.nocc = self.mol.nelec[0]
-        self.nvir = self.nmo - self.nocc
         self.mo_occ = self.scf_eng.mo_occ
-        self.sa = slice(0, self.nmo)
-        self.so = slice(0, self.nocc)
-        self.sv = slice(self.nocc, self.nmo)
         self.e = self.scf_eng.mo_energy
-        self.eo = self.e[self.so]
-        self.ev = self.e[self.sv]
-        self.Co = self.C[:, self.so]
-        self.Cv = self.C[:, self.sv]
         self.D = self.scf_eng.make_rdm1()
-        # self.eri0_ao = self.mol.intor("int2e")
-        # self.eri0_mo = np.einsum("uvkl, up, vq, kr, ls -> pqrs", self.eri0_ao, self.C, self.C, self.C, self.C)
         return
+
+    # Properties
+
+    @property
+    def C(self):
+        return self._C
+
+    @C.setter
+    def C(self, C):
+        if self._C is None:
+            self._C = C
+        else:
+            raise AttributeError("Once orbital coefficient is set, it should not be changed anymore.")
+
+    @property
+    def Co(self):
+        return self.C[:, self.so]
+
+    @property
+    def Cv(self):
+        return self.C[:, self.sv]
+
+    @property
+    def nmo(self):
+        if self.C is None:
+            raise ValueError("Molecular orbital number should be determined after SCF process!\nPrepare self.C first.")
+        return self.C.shape[1]
+
+    @property
+    def nao(self):
+        return self.mol.nao
+
+    @property
+    def nocc(self):
+        return self.mol.nelec[0]
+
+    @property
+    def nvir(self):
+        return self.nmo - self.nocc
+
+    @property
+    def mo_occ(self):
+        return self._mo_occ
+
+    @mo_occ.setter
+    def mo_occ(self, mo_occ):
+        if self._mo_occ is None:
+            self._mo_occ = mo_occ
+        else:
+            raise AttributeError("Once mo_occ is set, it should not be changed anymore.")
+
+    @property
+    def sa(self):
+        return slice(0, self.nmo)
+
+    @property
+    def so(self):
+        return slice(0, self.nocc)
+
+    @property
+    def sv(self):
+        return slice(self.nocc, self.nmo)
+
+    @property
+    def e(self):
+        return self._e
+
+    @e.setter
+    def e(self, e):
+        if self._e is None:
+            self._e = e
+        else:
+            raise AttributeError("Once orbital energy is set, it should not be changed anymore.")
+
+    @property
+    def eo(self):
+        return self.e[self.so]
+
+    @property
+    def ev(self):
+        return self.e[self.sv]
+
+    @property
+    def D(self):
+        return self._D
+
+    @D.setter
+    def D(self, D):
+        if self._D is None:
+            self._D = D
+        else:
+            raise AttributeError("Once AO basis density is set, it should not be changed anymore.")
 
     @property
     def H_0_ao(self):

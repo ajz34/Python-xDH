@@ -1,8 +1,9 @@
 import numpy as np
 from functools import wraps, partial
 from time import time
-import os, inspect, gc
-
+import os
+import inspect
+import gc
 
 LOGLEVEL = int(os.getenv("LOGLEVEL", 0))
 print = partial(print, flush=True)
