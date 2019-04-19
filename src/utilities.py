@@ -51,13 +51,14 @@ def timing_level(level):
             end = time()
             if LOGLEVEL >= level:
                 stack = inspect.stack()
+                the_file = "\"" + stack[1].filename + "\", line " + str(stack[1].lineno)
                 if "self" in stack[1][0].f_locals:
-                    the_class = stack[1][0].f_locals["self"].__class__.__qualname__ + "."
+                    the_func = stack[1][0].f_locals["self"].__class__.__qualname__ + "." + stack[1].function
                 else:
-                    the_class = (stack[1][0].f_globals["__name__"] + ": ")
-                the_method = stack[1][0].f_code.co_name
-                print(" {0:40s}, called by {1:40s}, Elapsed time: {2:17.10f} s"
-                      .format(f.__qualname__, the_class + the_method + "()", end-start))
+                    the_func = stack[1].function
+                print(" {0:40s}, Elapsed time: {1:17.10f} s | called by {2:40s}, in file {3:}"
+                      .format(f.__qualname__, end-start, the_func, the_file))
+                stack.clear()
             return result
         return wrapper
     return actual_timing
