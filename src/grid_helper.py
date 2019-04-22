@@ -15,7 +15,7 @@ dft.numint.libxc = dft.xcfun
 class GridHelper:
 
     def __init__(self, mol, grids, D):
-        warnings.warn("GridHelper is considered memory consuming!", FutureWarning)
+        warnings.warn("GridHelper is considered memory consuming!")
 
         # Initialization Parameters
         self.mol = mol  # type: pyscf.gto.Mole

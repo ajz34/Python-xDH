@@ -266,14 +266,14 @@ class HFHelper:
 
     @property
     def eri1_ao(self):
-        warnings.warn("eri1_ao: 4-idx tensor ERI should be not used!", FutureWarning)
+        warnings.warn("eri1_ao: 4-idx tensor ERI should be not used!")
         if self._eri1_ao is None:
             self._eri1_ao = self._get_eri1_ao()
         return self._eri1_ao
 
     @property
     def eri1_mo(self):
-        warnings.warn("eri1_mo: 4-idx tensor ERI should be not used!", FutureWarning)
+        warnings.warn("eri1_mo: 4-idx tensor ERI should be not used!")
         if self._eri1_mo is None:
             self._eri1_mo = self._get_eri1_mo()
         return self._eri1_mo
@@ -304,14 +304,14 @@ class HFHelper:
 
     @property
     def eri2_ao(self):
-        warnings.warn("eri2_ao: 4-idx tensor ERI should be not used!", FutureWarning)
+        warnings.warn("eri2_ao: 4-idx tensor ERI should be not used!")
         if self._eri2_ao is None:
             self._eri2_ao = self._get_eri2_ao()
         return self._eri2_ao
 
     @property
     def eri2_mo(self):
-        warnings.warn("eri2_mo: 4-idx tensor ERI should be not used!", FutureWarning)
+        warnings.warn("eri2_mo: 4-idx tensor ERI should be not used!")
         if self._eri2_mo is None:
             self._eri2_mo = self._get_eri2_mo()
         return self._eri2_mo
@@ -360,7 +360,7 @@ class HFHelper:
 
     @property
     def U_1(self):
-        warnings.warn("U_1: Generating total U matrix should be considered as numerical unstable!", FutureWarning)
+        warnings.warn("U_1: Generating total U matrix should be considered as numerical unstable!")
         if self._U_1 is None:
             self._get_U_1(total_u=True)
         return self._U_1

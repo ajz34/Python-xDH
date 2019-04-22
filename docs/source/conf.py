@@ -164,8 +164,10 @@ texinfo_documents = [
 
 # -- Extension configuration -------------------------------------------------
 
+nbsphinx_execute = 'never'
 nbsphinx_allow_errors = True
 nbsphinx_timeout = 2000
+
 
 def setup(app):
     # https://github.com/scipy/scipy-sphinx-theme/blob/master/_theme/scipy/static/js/copybutton.js
