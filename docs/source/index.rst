@@ -23,6 +23,7 @@
    grad_gga
    grad_hf_ncgga
    hess_hf_ncgga
+   docstrings
 
 
 Indices and tables

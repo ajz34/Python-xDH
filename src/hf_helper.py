@@ -75,7 +75,7 @@ class HFHelper:
             self.initialization_scf()
         return
 
-    # Utility functions
+    # region Initializers
 
     @gccollect
     def initialization_pyscf(self):
@@ -98,7 +98,9 @@ class HFHelper:
         self.D = self.scf_eng.make_rdm1()
         return
 
-    # Properties
+    # endregion
+
+    # region Properties
 
     @property
     def C(self):
@@ -383,25 +385,13 @@ class HFHelper:
             self._U_2_vo = self._get_U_2_vo()
         return self._U_2_vo
 
+    # endregion
+
+    # region Utility functions
+
     def mol_slice(self, atm_id):
         _, _, p0, p1 = self.mol.aoslice_by_atom()[atm_id]
         return slice(p0, p1)
-
-    def _get_H_0_ao(self):
-        return self.scf_eng.get_hcore()
-
-    def _get_H_0_mo(self):
-        return self.C.T @ self.H_0_ao @ self.C
-
-    def _get_F_0_ao(self):
-        return self.scf_eng.get_fock(dm=self.D)
-
-    def _get_F_0_mo(self):
-        return self.C.T @ self.F_0_ao @ self.C
-
-    @timing
-    def _get_eri0_ao(self):
-        return self.mol.intor("int2e")
 
     def Ax0_Core(self, si, sj, sk, sl, cx=1, reshape=True):
         """
@@ -567,8 +557,6 @@ class HFHelper:
 
         return fx
 
-    # Values
-
     def get_grad(self):
         self.grad = self.scf_grad.kernel()
         return self.grad
@@ -576,6 +564,26 @@ class HFHelper:
     def get_hess(self):
         self.hess = self.scf_hess.kernel()
         return self.hess
+
+    # endregion
+
+    # region Getting Functions
+
+    def _get_H_0_ao(self):
+        return self.scf_eng.get_hcore()
+
+    def _get_H_0_mo(self):
+        return self.C.T @ self.H_0_ao @ self.C
+
+    def _get_F_0_ao(self):
+        return self.scf_eng.get_fock(dm=self.D)
+
+    def _get_F_0_mo(self):
+        return self.C.T @ self.F_0_ao @ self.C
+
+    @timing
+    def _get_eri0_ao(self):
+        return self.mol.intor("int2e")
 
     @gccollect
     def _get_H_1_ao(self):
@@ -1010,3 +1018,164 @@ class HFHelper:
         )[0]
         U_2_vo.shape = (self.natm, self.natm, 3, 3, self.nvir, self.nocc)
         return U_2_vo
+
+    # endregion
+
+    # region Reference Implementation
+
+    def _refimp_grad_elec_by_mo(self):
+        r"""
+        Reference implementation: Hartree-Fock electronic energy gradient by MO orbital approach.
+
+        .. math::
+            \frac{\partial}{\partial A_t} E_\mathrm{elec} = 2 h_{ii}^{A_t} + 2 (ii|jj)^{A_t} - (ij|ij)^{A_t} - 2 S_{ii}^{A_t} \varepsilon_i
+
+        Returns
+        -------
+        grad_elec : np.ndarray
+
+            2-idx Hartree-Fock electronic energy gradient:
+
+            - :math:`A`: atom
+            - :math:`t`: atomic coordinate componenent of :math:`A`
+
+        See Also
+        --------
+        _refimp_grad_elec
+        """
+        so = self.so
+        eo = self.eo
+        H_1_mo, S_1_mo, eri1_mo = self.H_1_mo, self.S_1_mo, self.eri1_mo
+        grad_elec = (
+            + 2 * H_1_mo[:, :, so, so].trace(0, 2, 3)
+            + 2 * eri1_mo[:, :, so, so, so, so].trace(0, 2, 3).trace(0, 2, 3)
+            - eri1_mo[:, :, so, so, so, so].trace(0, 2, 4).trace(0, 2, 3)
+            - 2 * (S_1_mo[:, :, so, so].diagonal(0, 2, 3) * eo).sum(axis=2)
+        )
+        return grad_elec
+
+    def _refimp_grad_elec(self):
+        r"""
+        Reference implementation: Hartree-Fock electronic energy gradient.
+
+        .. math::
+            \frac{\partial}{\partial A_t} E_\mathrm{elec} = h_{\mu \nu}^{A_t} D_{\mu \nu} + \frac{1}{2} (\mu \nu | \kappa \lambda)^{A_t} D_{\mu \nu} D_{\kappa \lambda} - \frac{1}{4} (\mu \kappa | \nu \lambda)^{A_t} D_{\mu \nu} D_{\kappa \lambda} - 2 S_{\mu \nu} C_{\mu i} \varepsilon_i C_{\nu i}
+
+        Returns
+        -------
+        grad_elec : np.ndarray
+
+            2-idx Hartree-Fock electronic energy gradient:
+
+            - :math:`A`: atom
+            - :math:`t`: atomic coordinate componenent of :math:`A`
+        """
+        H_1_ao, S_1_ao, eri1_ao = self.H_1_ao, self.S_1_ao, self.eri1_ao
+        Co, eo, D = self.Co, self.eo, self.D
+        grad_elec = (
+            + np.einsum("Atuv, uv -> At", H_1_ao, D)
+            + 0.5 * np.einsum("Atuvkl, uv, kl -> At", eri1_ao, D, D)
+            - 0.25 * np.einsum("Atukvl, uv, kl -> At", eri1_ao, D, D)
+            - 2 * np.einsum("Atuv, ui, i, vi -> At", S_1_ao, Co, eo, Co)
+        )
+        return grad_elec
+
+    def _refimp_grad_nuc(self):
+        r"""
+        Reference implementation: Nucleus energy gradient.
+
+        If variables defined
+
+        .. math::
+            Z_{MN} &= Z_M Z_N \\
+            V_{MNt} &= M_t - N_t \\
+            r_{MN} &= | \boldsymbol{M} - \boldsymbol{N} |
+
+        Then gradient of nucleus energy can be expressed as
+
+        .. math::
+            \frac{\partial}{\partial A_t} E_\mathrm{nuc} = - \frac{Z_{AM}}{r_{AM}^3} V_{AMt}
+
+        Returns
+        -------
+        grad_nuc : np.ndarray
+
+            2-idx Nucleus energy gradient:
+
+            - :math:`A`: atom
+            - :math:`t`: atomic coordinate componenent of :math:`A`
+
+        See Also
+        --------
+        _refimp_grad_elec
+        _refimp_grad_nuc
+        """
+        mol = self.mol
+        natm = self.natm
+        nuc_Z = np.einsum("M, N -> MN", mol.atom_charges(), mol.atom_charges())
+        nuc_V = lib.direct_sum("Mt - Nt -> MNt", mol.atom_coords(), mol.atom_coords())
+        nuc_rinv = 1 / (np.linalg.norm(nuc_V, axis=2) + np.diag([np.inf] * natm))
+        grad_nuc = - np.einsum("AM, AM, AMt -> At", nuc_Z, nuc_rinv ** 3, nuc_V)
+        return grad_nuc
+
+    def _refimp_grad(self):
+        r"""
+        Reference implementation: Hartree-Fock total energy gradient.
+
+        Simply addition of gradient component of electronic energy and neucleus energy.
+
+        .. math::
+            \frac{\partial}{\partial A_t} E_\mathrm{total} = \frac{\partial}{\partial A_t} E_\mathrm{elec} + \frac{\partial}{\partial A_t} E_\mathrm{nuc}
+
+        Returns
+        -------
+        scf_grad : np.ndarray
+
+            2-idx Hartree-Fock total energy gradient:
+
+            - :math:`A`: atom
+            - :math:`t`: atomic coordinate componenent of :math:`A`
+        """
+        scf_grad = self._refimp_grad_elec() + self._refimp_grad_nuc()
+        return scf_grad
+
+    def _refimp_hess_elec(self):
+        r"""
+        Reference implementation: Hartree-Fock electronic energy hessian.
+
+        .. math::
+            \frac{\partial^2}{\partial A_t \partial B_s} E_\mathrm{elec}
+            &= h_{\mu \nu}^{A_t B_s} + \frac{1}{2} (\mu \nu | \kappa \lambda)^{A_t B_s} D_{\mu \nu} D_{\kappa \lambda} - \frac{1}{4} (\mu \kappa | \nu \lambda)^{A_t B_s} D_{\mu \nu} D_{\kappa \lambda} - 2 \xi_{ii}^{A_t B_s} \varepsilon_i \\
+            &\quad + 4 U_{pi}^{B_s} F_{pi}^{A_t} + 4 U_{pi}^{A_t} F_{pi}^{B_s} + 4 U_{pi}^{A_t} U_{pi}^{B_s} \varepsilon_p + 4 U_{pi}^{A_t} A_{pi, qj} U_{qj}^{B_s}
+
+        Returns
+        -------
+        hess_elec : np.ndarray
+
+            4-idx Hartree-Fock electronic energy hessian:
+
+            - :math:`A`: atom
+            - :math:`B`: atom
+            - :math:`t`: atomic coordinate componenent of :math:`A`
+            - :math:`s`: atomic coordinate componenent of :math:`B`
+        """
+        so, sa = self.so, self.sa
+        D, e, eo = self.D, self.e, self.eo
+        F_1_mo = self.F_1_mo
+        eri2_ao = self.eri2_ao
+        H_2_ao, S_2_ao, Xi_2 = self.H_2_ao, self.S_2_ao, self.Xi_2
+        U_1 = self.U_1
+        Ax0_Core = self.Ax0_Core
+        hess_elec = (
+            + np.einsum("ABtsuv, uv -> ABts", H_2_ao, D)
+            + 0.5 * np.einsum("ABtsuvkl, uv, kl -> ABts", eri2_ao, D, D)
+            - 0.25 * np.einsum("ABtsukvl, uv, kl -> ABts", eri2_ao, D, D)
+            - 2 * np.einsum("ABtsi, i -> ABts", Xi_2.diagonal(0, 4, 5)[:, :, :, :, so], eo)
+            + 4 * np.einsum("Bspi, Atpi -> ABts", U_1[:, :, :, so], F_1_mo[:, :, :, so])
+            + 4 * np.einsum("Atpi, Bspi -> ABts", U_1[:, :, :, so], F_1_mo[:, :, :, so])
+            + 4 * np.einsum("Atpi, Bspi, p -> ABts", U_1[:, :, :, so], U_1[:, :, :, so], e)
+            + 4 * np.einsum("Atpi, Bspi -> ABts", U_1[:, :, :, so], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
+        )
+        return hess_elec
+
+    # endregion
