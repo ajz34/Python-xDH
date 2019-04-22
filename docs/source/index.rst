@@ -18,7 +18,7 @@
    basic_scf
    basic_mp2
    basic_gga
-   grad_rhf
+   rhf_grad
    u_rhf
    grad_gga
    grad_hf_ncgga
