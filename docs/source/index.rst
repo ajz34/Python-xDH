@@ -18,11 +18,13 @@
    basic_scf
    basic_mp2
    basic_gga
+   helpers
    rhf_grad
    u_rhf
    grad_gga
    grad_hf_ncgga
    hess_hf_ncgga
+   gga_cp2
    docstrings
 
 
