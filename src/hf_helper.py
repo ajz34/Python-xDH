@@ -1027,6 +1027,8 @@ class HFHelper:
         r"""
         Reference implementation: Hartree-Fock electronic energy gradient by MO orbital approach.
 
+        Yamaguchi (p428, V.1)
+
         .. math::
             \frac{\partial}{\partial A_t} E_\mathrm{elec} = 2 h_{ii}^{A_t} + 2 (ii|jj)^{A_t} - (ij|ij)^{A_t} - 2 S_{ii}^{A_t} \varepsilon_i
 
@@ -1057,6 +1059,8 @@ class HFHelper:
     def _refimp_grad_elec(self):
         r"""
         Reference implementation: Hartree-Fock electronic energy gradient.
+
+        Yamaguchi (p428, V.1)
 
         .. math::
             \frac{\partial}{\partial A_t} E_\mathrm{elec} = h_{\mu \nu}^{A_t} D_{\mu \nu} + \frac{1}{2} (\mu \nu | \kappa \lambda)^{A_t} D_{\mu \nu} D_{\kappa \lambda} - \frac{1}{4} (\mu \kappa | \nu \lambda)^{A_t} D_{\mu \nu} D_{\kappa \lambda} - 2 S_{\mu \nu} C_{\mu i} \varepsilon_i C_{\nu i}
@@ -1104,11 +1108,6 @@ class HFHelper:
 
             - :math:`A`: atom
             - :math:`t`: atomic coordinate componenent of :math:`A`
-
-        See Also
-        --------
-        _refimp_grad_elec
-        _refimp_grad_nuc
         """
         mol = self.mol
         natm = self.natm
@@ -1135,6 +1134,11 @@ class HFHelper:
 
             - :math:`A`: atom
             - :math:`t`: atomic coordinate componenent of :math:`A`
+
+        See Also
+        --------
+        _refimp_grad_elec
+        _refimp_grad_nuc
         """
         scf_grad = self._refimp_grad_elec() + self._refimp_grad_nuc()
         return scf_grad
@@ -1142,6 +1146,8 @@ class HFHelper:
     def _refimp_hess_elec(self):
         r"""
         Reference implementation: Hartree-Fock electronic energy hessian.
+
+        Yamaguchi (p428, V.2)
 
         .. math::
             \frac{\partial^2}{\partial A_t \partial B_s} E_\mathrm{elec}
@@ -1177,5 +1183,206 @@ class HFHelper:
             + 4 * np.einsum("Atpi, Bspi -> ABts", U_1[:, :, :, so], Ax0_Core(sa, so, sa, so)(U_1[:, :, :, so]))
         )
         return hess_elec
+
+    def _refimp_hess_nuc(self):
+        r"""
+        Reference implementation: Nucleus energy hessian.
+
+        If variables defined
+
+        .. math::
+            Z_{MN} &= Z_M Z_N \\
+            V_{MNt} &= M_t - N_t \\
+            r_{MN} &= | \boldsymbol{M} - \boldsymbol{N} |
+
+        Then hessian of nucleus energy can be expressed as
+
+        .. math::
+            \frac{\partial^2 E_\mathrm{nuc}}{\partial_{A_t} \partial_{B_s}} =
+            - 3 \frac{Z_{AB}}{r_{AB}^5} V_{ABt} V_{ABs}
+            + 3 \frac{Z_{AM}}{r_{AM}^5} V_{AMt} V_{AMs}
+            + \frac{Z_{AB}}{r_{AB}^3}
+            - \frac{Z_{AM}}{r_{AM}^3}
+
+        Returns
+        -------
+        hess_nuc : np.ndarray
+
+            4-idx Nucleus energy hessian:
+
+            - :math:`A`: atom
+            - :math:`B`: atom
+            - :math:`t`: atomic coordinate componenent of :math:`A`
+            - :math:`s`: atomic coordinate componenent of :math:`B`
+
+        See Also
+        --------
+        _refimp_grad_nuc
+        """
+        mol = self.mol
+        natm = self.natm
+        nuc_Z = np.einsum("M, N -> MN", mol.atom_charges(), mol.atom_charges())
+        nuc_V = lib.direct_sum("Mt - Nt -> MNt", mol.atom_coords(), mol.atom_coords())
+        nuc_rinv = 1 / (np.linalg.norm(nuc_V, axis=2) + np.diag([np.inf] * natm))
+        mask_atm = np.eye(natm)[:, :, None, None]
+        mask_3D = np.eye(3)[None, None, :, :]
+        hess_nuc = (
+            - 3 * np.einsum("AB, AB, ABt, ABs -> ABts", nuc_Z, nuc_rinv ** 5, nuc_V, nuc_V)
+            + 3 * np.einsum("AM, AM, AMt, AMs -> Ats", nuc_Z, nuc_rinv ** 5, nuc_V, nuc_V) * mask_atm
+            + np.einsum("AB, AB -> AB", nuc_Z, nuc_rinv ** 3)[:, :, None, None] * mask_3D
+            - np.einsum("AM, AM -> A", nuc_Z, nuc_rinv ** 3)[:, None, None, None] * mask_atm * mask_3D
+        )
+        return hess_nuc
+
+    def _refimp_hess(self):
+        r"""
+        Reference implementation: Hartree-Fock total energy hessian.
+
+        Simply addition of hessian component of electronic energy and neucleus energy.
+
+        .. math::
+            \frac{\partial^2}{\partial A_t \partial B_s} E_\mathrm{total} = \frac{\partial^2}{\partial A_t \partial B_s} E_\mathrm{elec} + \frac{\partial^2}{\partial A_t \partial B_s} E_\mathrm{nuc}
+
+        Returns
+        -------
+        scf_hess : np.ndarray
+
+            4-idx Nucleus energy hessian:
+
+            - :math:`A`: atom
+            - :math:`B`: atom
+            - :math:`t`: atomic coordinate componenent of :math:`A`
+            - :math:`s`: atomic coordinate componenent of :math:`B`
+
+            Symmetric tensor: :math:`A_t, B_s`
+        """
+        scf_hess = self._refimp_hess_elec() + self._refimp_hess_nuc()
+        return scf_hess
+
+    def _refimp_H_0_ao(self):
+        r"""
+        Reference implementation: Hamiltonian core.
+
+        .. math::
+            h_{\mu \nu} = t_{\mu \nu} + v_{\mu \nu}
+
+        Returns
+        -------
+        H_0_ao : np.ndarray
+
+            2-idx Hamiltonian core :math:`h_{\mu \nu}`.
+
+            - :math:`\mu`: atomic orbital
+            - :math:`\nu`: atomic orbital
+
+            Symmetric tensor: :math:`\mu, \nu`
+        """
+        mol = self.mol
+        H_0_ao = mol.intor("int1e_kin") + mol.intor("int1e_nuc")
+        return H_0_ao
+
+    def _refimp_J_0_ao(self, X):
+        r"""
+        Reference implementation: Coulumb integral.
+
+        .. math::
+            J_{\mu \nu}[X_{\kappa \lambda}] = (\mu \nu | \kappa \lambda) X_{\kappa \lambda}
+
+        Parameters
+        ----------
+        X : np.ndarray
+
+            2-idx General density matrix :math:`X_{\mu \nu}`
+
+            - :math:`\mu`: atomic orbital
+            - :math:`\nu`: atomic orbital
+
+        Returns
+        -------
+        J_0_ao : np.ndarray
+
+            2-idx Coulumb integral :math:`J_{\mu \nu}[X_{\kappa \lambda}]`
+
+            - :math:`\mu`: atomic orbital
+            - :math:`\nu`: atomic orbital
+
+            Symmetric tensor: :math:`\mu, \nu`
+        """
+        J_0_ao = np.einsum("uvkl, kl -> uv", self.eri0_ao, X)
+        return J_0_ao
+
+    def _refimp_K_0_ao(self, X):
+        r"""
+        Reference implementation: Exchange integral (with symmetric general density $X_{\kappa \lambda}$).
+
+        .. math::
+            K_{\mu \nu}[X_{\kappa \lambda}] = (\mu \kappa | \nu \lambda) X_{\kappa \lambda}
+
+        Parameters
+        ----------
+        X : np.ndarray
+
+            2-idx General density matrix :math:`X_{\mu \nu}`
+
+            - :math:`\mu`: atomic orbital
+            - :math:`\nu`: atomic orbital
+
+            Symmetric tensor condition: :math:`\mu, \nu`
+
+        Returns
+        -------
+        K_0_ao : np.ndarray
+
+            2-idx Exchange integral :math:`K_{\mu \nu}[X_{\kappa \lambda}]`
+
+            - :math:`\mu`: atomic orbital
+            - :math:`\nu`: atomic orbital
+
+            Symmetric tensor: :math:`\mu, \nu`
+        """
+        K_0_ao = np.einsum("ukvl, kl -> uv", self.eri0_ao, X)
+        return K_0_ao
+
+    def _refimp_F_0_ao(self, X):
+        r"""
+        Reference implementation: Fock matrix (with symmetric general density $X_{\kappa \lambda}$).
+
+        .. math::
+            F_{\mu \nu}[X_{\kappa \lambda}] = h_{\mu \nu} + J_{\mu \nu}[X_{\kappa \lambda}] - \frac{1}{2} K_{\mu \nu}[X_{\kappa \lambda}]
+
+        Parameters
+        ----------
+        X : np.ndarray
+
+            2-idx General density matrix :math:`X_{\mu \nu}`
+
+            - :math:`\mu`: atomic orbital
+            - :math:`\nu`: atomic orbital
+
+            Symmetric tensor condition: :math:`\mu, \nu`
+
+        Returns
+        -------
+        F_0_ao : np.ndarray
+
+            2-idx Fock matrix :math:`F_{\mu \nu}[X_{\kappa \lambda}]`
+
+            - :math:`\mu`: atomic orbital
+            - :math:`\nu`: atomic orbital
+
+            Symmetric tensor: :math:`\mu, \nu`
+
+        See Also
+        --------
+        _refimp_H_0_ao
+        _refimp_J_0_ao
+        _refimp_K_0_ao
+        """
+        F_0_ao = (
+            + self._refimp_H_0_ao()
+            + self._refimp_J_0_ao(X)
+            + self._refimp_K_0_ao(X)
+        )
+        return F_0_ao
 
     # endregion
