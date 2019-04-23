@@ -7,7 +7,6 @@ source/temp
 release
 *.out
 *.bsub
-*.dat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
