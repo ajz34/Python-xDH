@@ -2,8 +2,7 @@ import numpy as np
 from pyscf import gto, dft
 from functools import partial
 
-import sys, gc, os
-sys.path.append('../../')
+import os
 os.environ["LOGLEVEL"] = "2"
 import pickle
 from gga_helper import GGAHelper
@@ -28,8 +27,9 @@ def main():
     mol.build()
 
     grids = dft.gen_grid.Grids(mol)
-    grids.atom_grid = (75, 302)
+    grids.atom_grid = (99, 590)
     grids.becke_scheme = dft.gen_grid.stratmann
+    grids.prune = None
     grids.build()
 
     scfh = GGAHelper(mol, "b3lypg", grids)
