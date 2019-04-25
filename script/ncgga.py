@@ -1,16 +1,17 @@
 #!/share/home/zyzhu/anaconda3/bin/python
 
-
 """
 Non-Consistent GGA program
 
 Usage:
     ncgga.py -h
-    ncgga.py [--no-exec] [-q <queue>] [-p <cpu-core>] [-n <node>] [-m <memory>] <gaussian-input>
+    ncgga.py [--no-exec] [--confirm] [-q <queue>] [-p <cpu-core>] [-n <node>] [-m <memory>] <gaussian-input>
 
 Options:
     -h --help                   Show this screen.
     --no-exec                   Do not submit bsub queue or execute.
+    --confirm                   Do numerical derivative, and show maximum deviation of numerical and
+                                analytical derivative
     -q --queue <queue>          Bsub queue name, e.g. `xp24mc2`, `single`.
     -p --process <cpu-core>     CPU threading numbers.
                                     Default value is the default largest threading numbers of a node,
@@ -139,7 +140,7 @@ def parse_gaussian_input(lines: typing.List[str], config_dict: dict):
     for line_num in range(line_cur_num, len(lines)):
         line = lines[line_num].strip().lower()
         if line != "":
-            xc_group = re.match(r"^(\w+?)( *?)=( *?)(.+?)\)$", line)
+            xc_group = re.match(r"^(\w+?)( *?)=( *?)(.+?)$", line)
             if xc_group is None:
                 raise ValueError("Cannot parse line `" + line + "`\n")
             if xc_group.group(1) == config_dict["scf_xc"]:
@@ -190,6 +191,7 @@ def test_config(config_dict: dict):
 def write_config(config_dict: dict):
     prefix = config_dict["prefix"]
     helper_list = [
+        "",
         "scfh = GGAHelper(mol, '{}', grids)".format(config_dict["scf_xc"]),
         "nch = GGAHelper(mol, '{}', grids, init_scf=False)".format(config_dict["nc_xc"]),
         "ncgga = NCGGAEngine(scfh, nch)",
@@ -200,32 +202,61 @@ def write_config(config_dict: dict):
     e_list = [
         "@timing_level(0)",
         "def get_E_0():",
-        "    E_0 = ncgga.get_E_0()",
+        "    E_0 = ncgga.E_0",
         "    print('E_0: {:18.10E}'.format(E_0))",
+        "    return E_0",
         "\n",
         "@timing_level(0)",
         "def get_E_1():",
-        "    E_1 = ncgga.get_E_1()",
+        "    E_1 = ncgga.E_1",
         "    print('E_1:')\n"
         "    for array in E_1:\n"
         "        print(''.join(['{:18.10E}'] * 3).format(*array))",
+        "    return E_1",
         "\n",
         "@timing_level(0)",
         "def get_E_2():",
-        "    E_2 = ncgga.get_E_2()",
+        "    E_2 = ncgga.E_2",
         "    for (A, arrayA) in enumerate(E_2):\n"
         "        for (B, arrayAB) in enumerate(arrayA):\n"
         "            print(A, ', ', B)\n"
         "            for array in arrayAB:\n"
         "                print(''.join(['{:18.10E}'] * 3).format(*array))",
+        "    return E_2",
         "\n",
-        "get_E_0()",
-        "get_E_1()",
-        "get_E_2()",
-        "\n"
+        "@timing_level(0)",
+        "def numeric_E_1_from_E_0(mol):",
+        "\n    ".join(helper_list),
+        "    return ncgga.E_0",
+        "\n",
+        "@timing_level(0)",
+        "def numeric_E_2_from_E_1(mol):",
+        "\n    ".join(helper_list),
+        "    return ncgga.E_1",
+        "\n",
+        "@timing_level(0)",
+        "def confirm_E_1(E_1):",
+        "    num_E_1 = NumericDiff(mol, numeric_E_1_from_E_0).get_numdif()",
+        "    print('Maximum difference of E_1: {:20.10E}'.format((num_E_1 - E_1).max()))",
+        "    print('Minimum difference of E_1: {:20.10E}'.format((num_E_1 - E_1).min()))",
+        "\n",
+        "@timing_level(0)",
+        "def confirm_E_2(E_2):",
+        "    num_E_2 = NumericDiff(mol, numeric_E_2_from_E_1, deriv=2).get_numdif()",
+        "    print('Maximum difference of E_2: {:20.10E}'.format((num_E_2 - E_2).max()))",
+        "    print('Minimum difference of E_2: {:20.10E}'.format((num_E_2 - E_2).min()))",
+        "\n",
+        "E_0 = get_E_0()",
+        "E_1 = get_E_1()",
+        "E_2 = get_E_2()",      # -4
+        "confirm_E_1(E_1)",     # -3
+        "confirm_E_2(E_2)",     # -2
+        "\n"                    # -1
     ]
     if config_dict["job"] == "force":
-        e_list.pop(-2)
+        e_list[-4] = e_list[-2] = ""
+    if not config_dict["confirm"]:
+        e_list[-3] = e_list[-2] = ""
 
     loglevel = 2
     if config_dict["loglevel"] in ["t"]:
@@ -254,6 +285,7 @@ def write_config(config_dict: dict):
         "from gga_helper import GGAHelper",
         "from ncgga_engine import NCGGAEngine",
         "from utilities import timing_level",
+        "from numeric_helper import NumericDiff",
         "from pyscf import gto, dft",
         "\n",
         "print('Job name: {}')".format(config_dict["title"]),
@@ -281,12 +313,8 @@ def write_config(config_dict: dict):
 
 
 def exec_program(config_dict: dict):
-    import sys
-    # sys.path.insert(0, ".")
     prefix = config_dict["prefix"]
     if config_dict["queue"] is None:
-        # import importlib
-        # importlib.import_module(prefix)
         os.system("/share/home/zyzhu/anaconda3/bin/python " + prefix + ".py")
     else:
         os.system("bsub < " + prefix + ".bsub")
@@ -344,13 +372,13 @@ if __name__ == '__main__':
         "job": "freq",
         "title": "",
         "mol": [],
-        "queue": None,
-        "node": None,
+        "queue": arguments["--queue"],
+        "node": arguments["--node"],
+        "confirm": arguments["--confirm"],
     }
 
     # Prepare bsub file if needed
     if arguments["--queue"] is not None:
-        conf["queue"] = arguments["--queue"]
         if re.match("^xp([0-9]+?)mc([0-9]+?)$", arguments["--queue"]):
             node_group = re.match("^xp([0-9]+?)mc([0-9]+?)$", arguments["--queue"])
             conf["cpu"] = int(node_group.group(1))
@@ -363,7 +391,6 @@ if __name__ == '__main__':
         conf["cpu"] = int(arguments["--process"])
     if arguments["--mem"] is not None:
         conf["mem"] = int(arguments["--mem"])
-    conf["node"] = arguments["--node"]
 
     # Parse input file
     parse_gaussian_input(file_lines, conf)
