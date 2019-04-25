@@ -1,0 +1,13 @@
+%mem=10GB
+%nprocshared=8
+#p xc0-PBE0/6-31G Int(Grid=99590) Force 6D 10F
+
+C6H6
+
+0 1
+O  0.0  0.0  0.0
+O  0.0  0.0  1.5
+H  1.5  0.0  0.0
+H  0.0  0.7  1.5
+
+xc0 = B3LYP

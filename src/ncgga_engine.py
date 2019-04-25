@@ -25,27 +25,64 @@ class NCGGAEngine:
         self.nch.mo_occ = self.scfh.mo_occ
         self.nch.D = self.scfh.D
 
-        self.E_0 = None
-        self.E_1 = None
-        self.E_2 = None
-        self.E_SS = None
-        self.E_SU = None
-        self.E_UU = None
+        self._E_0 = None
+        self._E_1 = None
+        self._E_2 = None
+        self._E_SS = None
+        self._E_SU = None
+        self._E_UU = None
         self._Z_1 = None
 
         return
 
-    @gccollect
-    def get_E_0(self):
+    @property
+    def E_0(self):
+        if self._E_0 is None:
+            self._E_0 = self.get_E_0()
+        return self._E_0
 
-        self.E_0 = self.nch.scf_eng.energy_tot(dm=self.scfh.D)
-        return self.E_0
+    @property
+    def E_1(self):
+        if self._E_1 is None:
+            self._E_1 = self.get_E_1()
+        return self._E_1
+
+    @property
+    def E_SS(self):
+        if self._E_SS is None:
+            self._E_SS = self.get_E_SS()
+        return self._E_SS
+
+    @property
+    def E_SU(self):
+        if self._E_SU is None:
+            self._E_SU = self.get_E_SU()
+        return self._E_SU
+
+    @property
+    def E_UU(self):
+        if self._E_UU is None:
+            self._E_UU = self.get_E_UU()
+        return self._E_UU
+
+    @property
+    def E_2(self):
+        if self._E_2 is None:
+            self._E_2 = self.get_E_2()
+        return self._E_2
 
     @property
     def Z_1(self):
         if self._Z_1 is None:
             self._Z_1 = self._get_Z_1()
         return self._Z_1
+
+    @timing
+    @gccollect
+    def get_E_0(self):
+
+        E_0 = self.nch.scf_eng.energy_tot(dm=self.scfh.D)
+        return E_0
 
     @timing
     @gccollect
@@ -67,6 +104,7 @@ class NCGGAEngine:
 
         return Z_1
 
+    @timing
     @gccollect
     def get_E_1(self):
 
@@ -101,22 +139,14 @@ class NCGGAEngine:
         )
 
         E_1 = E_S + E_U + nch.scf_grad.grad_nuc()
-        self.E_1 = E_1
-        return self.E_1
+        return E_1
 
+    @timing
     def get_E_2(self):
+        E_2 = self.E_SS + self.E_SU + self.E_UU + self.nch.scf_hess.hess_nuc()
+        return E_2
 
-        if self.E_SS is None:
-            self.get_E_SS()
-        if self.E_SU is None:
-            self.get_E_SU()
-        if self.E_UU is None:
-            self.get_E_UU()
-
-        self.E_2 = self.E_SS + self.E_SU + self.E_UU + self.nch.scf_hess.hess_nuc()
-
-        return self.E_2
-
+    @timing
     @gccollect
     def get_E_SS(self):
 
@@ -175,9 +205,9 @@ class NCGGAEngine:
         )
 
         E_SS = E_SS_GGA_contrib1 + E_SS_GGA_contrib2 + E_SS_GGA_contrib3 + E_SS_HF_contrib
-        self.E_SS = E_SS
-        return self.E_SS
+        return E_SS
 
+    @timing
     @gccollect
     def get_E_SU(self):
 
@@ -193,9 +223,9 @@ class NCGGAEngine:
             - 2 * np.einsum("Atpi, Bspi -> ABts", S_1_mo[:, :, so, so], nch.F_1_mo[:, :, so, so])
         )
         E_SU += E_SU.transpose((1, 0, 3, 2))
-        self.E_SU = E_SU
-        return self.E_SU
+        return E_SU
 
+    @timing
     @gccollect
     def get_E_UU(self):
 
@@ -262,9 +292,8 @@ class NCGGAEngine:
         E_UU_safe_4 += E_UU_safe_4.transpose((1, 0, 3, 2))
 
         E_UU = E_UU_safe_1 + E_UU_safe_2 + E_UU_safe_3 + E_UU_safe_4
-        self.E_UU = E_UU
 
-        return self.E_UU
+        return E_UU
 
 
 if __name__ == "__main__":
