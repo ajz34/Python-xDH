@@ -1,5 +1,8 @@
 from pyscf import gto, lib
 from berny import Berny, geomlib
+import os
+
+LOGLEVEL = int(os.getenv("LOGLEVEL", 0))
 
 
 class OptimizeHelper:
@@ -40,7 +43,7 @@ class OptimizeHelper:
 
         mol = self.mol_origin
         geom_outer = self.mol_to_geom(mol)
-        optimizer = Berny(geom_outer, verbosity=10,
+        optimizer = Berny(geom_outer, verbosity=(2 + LOGLEVEL),
                           gradientmax=self.gradientmax,
                           gradientrms=self.gradientrms,
                           stepmax=self.stepmax,

@@ -114,6 +114,8 @@ def parse_gaussian_input(lines: typing.List[str], config_dict: dict):
                     pass
                 elif word == "opt":
                     config_dict["opt_level"] = "tight"
+                elif re.match(r"^opt\((\w+?)\)$", word):
+                    config_dict["opt_level"] = re.match(r"^opt\((\w+?)\)$", word).group(1)
                 else:
                     raise ValueError("Cannot parse word `" + word + "`\n")
         else:
@@ -304,7 +306,8 @@ def write_config(config_dict: dict):
         "\n    ".join(helper_list),
         "    E_0, E_1 = ncgga.E_0, ncgga.E_1",
         "    print('In mol_to_E_0_E_1: ')",
-        "    print(E_0)",
+        "    print('E_0: {}'.format(E_0))",
+        "    print('Molecule Geometry:')",
         "    print(mol.atom_coords() * lib.param.BOHR)",
         "    return E_0, E_1",
         "\n",
@@ -313,9 +316,9 @@ def write_config(config_dict: dict):
         "E_2 = get_E_2()",      # -7
         "confirm_E_1(E_1)",     # -6
         "confirm_E_2(E_2)",     # -5
-        "mol_optimized = OptimizeHelper(mol).optimize(mol_to_E_0_E_1)",
-        "print('Optimized geometry:')",
-        "print(mol_optimized.atom_coords() * lib.param.BOHR)",
+        "mol_optimized = OptimizeHelper(mol).optimize(mol_to_E_0_E_1)",     # -4
+        "print('Optimized geometry:')",                                     # -3
+        "print(mol_optimized.atom_coords() * lib.param.BOHR)",              # -2
         "\n",                   # -1
     ]
     if config_dict["job"] == "force":
@@ -324,6 +327,8 @@ def write_config(config_dict: dict):
         e_list[-6] = e_list[-5] = ""
     if config_dict["opt_level"] is None:
         e_list[-4] = e_list[-3] = e_list[-2] = ""
+    if config_dict["opt_level"] == "verytight":
+        e_list[-4] = "mol_optimized = OptimizeHelper(mol).verytight().optimize(mol_to_E_0_E_1)",
 
     prefix = config_dict["prefix"]
     with open(prefix + ".py", "w") as fwrite:
