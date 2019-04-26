@@ -37,7 +37,7 @@ class OptimizeHelper:
 
         mol_opt = mol.copy()
         for geom in optimizer:
-            energy, gradients = solver(mol_opt, geom)
+            energy, gradients = solver(mol_opt)
             optimizer.send((energy, gradients))
             mol_opt = self.geom_to_mol(mol, geom)
         return mol_opt
