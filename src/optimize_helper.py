@@ -7,10 +7,10 @@ class OptimizeHelper:
     def __init__(self, mol_origin: gto.Mole):
         self.mol_origin = mol_origin
         self.mol_optimized = None
-        self.gradientmax = None
-        self.gradientrms = None
-        self.stepmax = None
-        self.steprms = None
+        self.gradientmax = 0.00045
+        self.gradientrms = 0.00015
+        self.stepmax = 0.0018
+        self.steprms = 0.0012
 
     @staticmethod
     def mol_to_geom(mol):
@@ -33,7 +33,10 @@ class OptimizeHelper:
 
         mol = self.mol_origin
         optimizer = Berny(self.mol_to_geom(mol), verbosity=-2,
-                          gradientmax=0.000001, gradientrms=0.000001, stepmax=0.000002, steprms=0.000002)
+                          gradientmax=self.gradientmax,
+                          gradientrms=self.gradientrms,
+                          stepmax=self.stepmax,
+                          steprms=self.steprms)
 
         mol_opt = mol.copy()
         for geom in optimizer:
