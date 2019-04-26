@@ -328,7 +328,7 @@ def write_config(config_dict: dict):
     if config_dict["opt_level"] is None:
         e_list[-4] = e_list[-3] = e_list[-2] = ""
     if config_dict["opt_level"] == "verytight":
-        e_list[-4] = "mol_optimized = OptimizeHelper(mol).verytight().optimize(mol_to_E_0_E_1)",
+        e_list[-4] = "mol_optimized = OptimizeHelper(mol).verytight().optimize(mol_to_E_0_E_1)"
 
     prefix = config_dict["prefix"]
     with open(prefix + ".py", "w") as fwrite:
