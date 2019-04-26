@@ -112,6 +112,8 @@ def parse_gaussian_input(lines: typing.List[str], config_dict: dict):
                     config_dict["cart"] = False
                 elif word == "nosymm":
                     pass
+                elif word == "opt":
+                    config_dict["opt_level"] = "tight"
                 else:
                     raise ValueError("Cannot parse word `" + word + "`\n")
         else:
@@ -189,74 +191,6 @@ def test_config(config_dict: dict):
 
 
 def write_config(config_dict: dict):
-    prefix = config_dict["prefix"]
-    helper_list = [
-        "",
-        "scfh = GGAHelper(mol, '{}', grids)".format(config_dict["scf_xc"]),
-        "nch = GGAHelper(mol, '{}', grids, init_scf=False)".format(config_dict["nc_xc"]),
-        "ncgga = NCGGAEngine(scfh, nch)",
-        "\n",
-    ]
-    if config_dict["scf_xc"] == "hf":
-        helper_list[0] = "hfh = HFHelper(mol)"
-    e_list = [
-        "@timing_level(0)",
-        "def get_E_0():",
-        "    E_0 = ncgga.E_0",
-        "    print('E_0: {:18.10E}'.format(E_0))",
-        "    return E_0",
-        "\n",
-        "@timing_level(0)",
-        "def get_E_1():",
-        "    E_1 = ncgga.E_1",
-        "    print('E_1:')\n"
-        "    for array in E_1:\n"
-        "        print(''.join(['{:18.10E}'] * 3).format(*array))",
-        "    return E_1",
-        "\n",
-        "@timing_level(0)",
-        "def get_E_2():",
-        "    E_2 = ncgga.E_2",
-        "    for (A, arrayA) in enumerate(E_2):\n"
-        "        for (B, arrayAB) in enumerate(arrayA):\n"
-        "            print(A, ', ', B)\n"
-        "            for array in arrayAB:\n"
-        "                print(''.join(['{:18.10E}'] * 3).format(*array))",
-        "    return E_2",
-        "\n",
-        "@timing_level(0)",
-        "def numeric_E_1_from_E_0(mol):",
-        "\n    ".join(helper_list),
-        "    return ncgga.E_0",
-        "\n",
-        "@timing_level(0)",
-        "def numeric_E_2_from_E_1(mol):",
-        "\n    ".join(helper_list),
-        "    return ncgga.E_1",
-        "\n",
-        "@timing_level(0)",
-        "def confirm_E_1(E_1):",
-        "    num_E_1 = NumericDiff(mol, numeric_E_1_from_E_0).get_numdif()",
-        "    print('Maximum difference of E_1: {:20.10E}'.format((num_E_1 - E_1).max()))",
-        "    print('Minimum difference of E_1: {:20.10E}'.format((num_E_1 - E_1).min()))",
-        "\n",
-        "@timing_level(0)",
-        "def confirm_E_2(E_2):",
-        "    num_E_2 = NumericDiff(mol, numeric_E_2_from_E_1, deriv=2).get_numdif()",
-        "    print('Maximum difference of E_2: {:20.10E}'.format((num_E_2 - E_2).max()))",
-        "    print('Minimum difference of E_2: {:20.10E}'.format((num_E_2 - E_2).min()))",
-        "\n",
-        "E_0 = get_E_0()",
-        "E_1 = get_E_1()",
-        "E_2 = get_E_2()",      # -4
-        "confirm_E_1(E_1)",     # -3
-        "confirm_E_2(E_2)",     # -2
-        "\n"                    # -1
-    ]
-    if config_dict["job"] == "force":
-        e_list[-4] = e_list[-2] = ""
-    if not config_dict["confirm"]:
-        e_list[-3] = e_list[-2] = ""
 
     loglevel = 2
     if config_dict["loglevel"] in ["t"]:
@@ -286,7 +220,8 @@ def write_config(config_dict: dict):
         "from ncgga_engine import NCGGAEngine",
         "from utilities import timing_level",
         "from numeric_helper import NumericDiff",
-        "from pyscf import gto, dft",
+        "from optimize_helper import OptimizeHelper",
+        "from pyscf import gto, dft, lib",
         "\n",
         "print('Job name: {}')".format(config_dict["title"]),
         "",
@@ -298,13 +233,99 @@ def write_config(config_dict: dict):
         "mol.max_memory = int(float(MAXMOLMEM) * 1024)",
         "mol.build()",
         "",
-        "grids = dft.Grids(mol)",
-        "grids.becke_scheme = dft.grid.stratmann",
-        "grids.atom_grid = ({}, {})".format(config_dict["grid_rad"], config_dict["grid_sph"]),
-        "grids.build()",
+        "def mol_to_grids(mol):",
+        "    grids = dft.Grids(mol)",
+        "    grids.becke_scheme = dft.grid.stratmann",
+        "    grids.atom_grid = ({}, {})".format(config_dict["grid_rad"], config_dict["grid_sph"]),
+        "    grids.build()",
+        "    return grids",
         "\n",
     ]
 
+    helper_list = [
+        "",
+        "grids = mol_to_grids(mol)",
+        "scfh = GGAHelper(mol, '{}', grids)".format(config_dict["scf_xc"]),
+        "nch = GGAHelper(mol, '{}', grids, init_scf=False)".format(config_dict["nc_xc"]),
+        "ncgga = NCGGAEngine(scfh, nch)",
+    ]
+    if config_dict["scf_xc"] == "hf":
+        helper_list[0] = "hfh = HFHelper(mol)"
+
+    e_list = [
+        "@timing_level(0)",
+        "def get_E_0():",
+        "    E_0 = ncgga.E_0",
+        "    print('E_0: {:18.10E}'.format(E_0))",
+        "    return E_0",
+        "\n",
+        "@timing_level(0)",
+        "def get_E_1():",
+        "    E_1 = ncgga.E_1",
+        "    print('E_1:')\n"
+        "    for array in E_1:\n"
+        "        print(''.join(['{:18.10E}'] * 3).format(*array))",
+        "    return E_1",
+        "\n",
+        "@timing_level(0)",
+        "def get_E_2():",
+        "    E_2 = ncgga.E_2",
+        "    for (A, arrayA) in enumerate(E_2):\n"
+        "        for (B, arrayAB) in enumerate(arrayA):\n"
+        "            print(A, ', ', B)\n"
+        "            for array in arrayAB:\n"
+        "                print(''.join(['{:18.10E}'] * 3).format(*array))",
+        "    return E_2",
+        "\n",
+        "@timing_level(0)",
+        "def mol_to_E_0(mol):",
+        "\n    ".join(helper_list),
+        "    return ncgga.E_0",
+        "\n",
+        "@timing_level(0)",
+        "def mol_to_E_1(mol):",
+        "\n    ".join(helper_list),
+        "    return ncgga.E_1",
+        "\n",
+        "@timing_level(0)",
+        "def confirm_E_1(E_1):",
+        "    num_E_1 = NumericDiff(mol, mol_to_E_0).get_numdif()",
+        "    print('Maximum difference of E_1: {:20.10E}'.format((num_E_1 - E_1).max()))",
+        "    print('Minimum difference of E_1: {:20.10E}'.format((num_E_1 - E_1).min()))",
+        "\n",
+        "@timing_level(0)",
+        "def confirm_E_2(E_2):",
+        "    num_E_2 = NumericDiff(mol, mol_to_E_1, deriv=2).get_numdif()",
+        "    print('Maximum difference of E_2: {:20.10E}'.format((num_E_2 - E_2).max()))",
+        "    print('Minimum difference of E_2: {:20.10E}'.format((num_E_2 - E_2).min()))",
+        "\n",
+        "@timing_level(0)",
+        "def mol_to_E_0_E_1(mol):",
+        "\n    ".join(helper_list),
+        "    E_0, E_1 = ncgga.E_0, ncgga.E_1",
+        "    print('In mol_to_E_0_E_1: ')",
+        "    print(E_0)",
+        "    print(mol.atom_coords() * lib.param.BOHR)",
+        "    return E_0, E_1",
+        "\n",
+        "E_0 = get_E_0()",
+        "E_1 = get_E_1()",
+        "E_2 = get_E_2()",      # -7
+        "confirm_E_1(E_1)",     # -6
+        "confirm_E_2(E_2)",     # -5
+        "mol_optimized = OptimizeHelper(mol).optimize(mol_to_E_0_E_1)",
+        "print('Optimized geometry:')",
+        "print(mol_optimized.atom_coords() * lib.param.BOHR)",
+        "\n",                   # -1
+    ]
+    if config_dict["job"] == "force":
+        e_list[-7] = e_list[-5] = ""
+    if not config_dict["confirm"]:
+        e_list[-6] = e_list[-5] = ""
+    if config_dict["opt_level"] is None:
+        e_list[-4] = e_list[-3] = e_list[-2] = ""
+
+    prefix = config_dict["prefix"]
     with open(prefix + ".py", "w") as fwrite:
         fwrite.writelines("\n".join(config_list + helper_list + e_list))
 
@@ -369,6 +390,7 @@ if __name__ == '__main__':
         "basis": None,
         "grid_rad": 75,
         "grid_sph": 302,
+        "opt_level": None,
         "job": "freq",
         "title": "",
         "mol": [],

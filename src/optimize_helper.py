@@ -7,10 +7,17 @@ class OptimizeHelper:
     def __init__(self, mol_origin: gto.Mole):
         self.mol_origin = mol_origin
         self.mol_optimized = None
-        self.gradientmax = 0.00045
-        self.gradientrms = 0.00015
-        self.stepmax = 0.0018
-        self.steprms = 0.0012
+        self.gradientmax = 0.000450
+        self.gradientrms = 0.000300
+        self.stepmax = 0.001800
+        self.steprms = 0.001200
+
+    def set_verytight(self):
+        self.gradientmax = 0.000002
+        self.gradientrms = 0.000001
+        self.stepmax = 0.000006
+        self.steprms = 0.000004
+        return self
 
     @staticmethod
     def mol_to_geom(mol):
@@ -41,11 +48,12 @@ class OptimizeHelper:
 
         for geom in optimizer:
             mol_opt = self.geom_to_mol(mol, geom)
-            print("In optimization:")
-            print(gto.mole.cart2zmat(mol_opt.atom_coords()))
+            print("In optimization: Molecular geom")
+            print(mol_opt.atom_coords() * lib.param.BOHR)
             energy, gradients = solver(mol_opt)
             optimizer.send((energy, gradients))
-        return self.geom_to_mol(mol, geom)
+            geom_outer = geom
+        return self.geom_to_mol(mol, geom_outer)
 
 
 if __name__ == '__main__':
@@ -66,40 +74,29 @@ if __name__ == '__main__':
     mol.verbose = 0
     mol.build()
 
-    grids = dft.gen_grid.Grids(mol)
-    grids.atom_grid = (75, 302)
-    grids.becke_scheme = dft.gen_grid.stratmann
-    grids.build()
+    def mol_to_grids(mol):
+        grids = dft.gen_grid.Grids(mol)
+        grids.atom_grid = (75, 302)
+        grids.becke_scheme = dft.gen_grid.stratmann
+        grids.build()
+        return grids
 
     def mol_to_E_0_E_1(mol):
+        grids = mol_to_grids(mol)
         scfh = GGAHelper(mol, "b3lypg", grids)
         nch = GGAHelper(mol, "b3lypg", grids, init_scf=False)
         ncgga = NCGGAEngine(scfh, nch)
         E_0 = ncgga.E_0
         E_1 = ncgga.E_1
-        print("In Optimize: E_0 = {}".format(E_0))
+        print("In Optimization: E_0 = {}".format(E_0))
         return E_0, E_1
 
-    def mol_to_E_0_E_1_pyscf(mol):
-        scf_eng = dft.RKS(mol)
-        scf_eng.xc = "b3lypg"
-        scf_eng.grids = grids
-        E_0 = scf_eng.kernel()
-        scf_grad = grad.rks.Gradients(scf_eng)
-        E_1 = scf_grad.kernel()
-        return E_0, E_1
-
-    # mol_optimized = OptimizeHelper(mol).optimize(mol_to_E_0_E_1)
     scf_eng = dft.RKS(mol)
     scf_eng.xc = "b3lypg"
-    scf_eng.grids = grids
-    print(scf_eng.kernel())
+    scf_eng.grids = mol_to_grids(mol)
     scf_grad = grad.rks.Gradients(scf_eng)
-    print(scf_grad.kernel())
-    print(mol_to_E_0_E_1(mol)[0])
-    print(mol_to_E_0_E_1(mol)[1])
 
     mol_optimized = geomopt.optimize(scf_eng, verbose=4)
     print("-----\n", gto.mole.cart2zmat(mol_optimized.atom_coords()))
-    mol_optimized = OptimizeHelper(mol).optimize(mol_to_E_0_E_1_pyscf)
+    mol_optimized = OptimizeHelper(mol).optimize(mol_to_E_0_E_1)
     print("-----\n", gto.mole.cart2zmat(mol_optimized.atom_coords()))
