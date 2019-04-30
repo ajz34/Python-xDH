@@ -5,7 +5,7 @@ python:
     - 3.7
 
 before_install:
-    - cp $TRAVIS_BUILD_DIR/scripts/.pyscf_conf.py ~/.pyscf_conf.py
+    - cp $TRAVIS_BUILD_DIR/script/.pyscf_conf.py ~/.pyscf_conf.py
     - export PYTHONPATH=$TRAVIS_BUILD_DIR/src:$PYTHONPATH
     - pip install -r requirements.txt
 
