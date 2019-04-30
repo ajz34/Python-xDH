@@ -1,0 +1,6 @@
+pyscf
+jupyter
+sphinx
+nbsphinx
+pyberny
+sphinx_rtd_theme

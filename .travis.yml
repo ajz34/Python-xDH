@@ -2,9 +2,13 @@ language: python
 os: linux
 python:
     - 3.6
+    - 3.7
 
 before_install:
-    - pip install numpy scipy h5py nose nose-exclude nose-timer jupyter sphinx nbsphinx pyberny
+    - pip install -r requirements.txt
 
 script:
     - pytest
+    - cd $TRAVIS_BUILD_DIR/docs &&
+      make html
+
