@@ -7,7 +7,6 @@ python:
 before_install:
     - cp $TRAVIS_BUILD_DIR/script/.pyscf_conf.py ~/.pyscf_conf.py
     - export PYTHONPATH=$TRAVIS_BUILD_DIR/src:$PYTHONPATH
-    - sudo apt install pandoc
     - pip install -r requirements.txt
 
 script:
