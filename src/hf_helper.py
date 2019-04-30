@@ -1381,7 +1381,7 @@ class HFHelper:
         F_0_ao = (
             + self._refimp_H_0_ao()
             + self._refimp_J_0_ao(X)
-            + self._refimp_K_0_ao(X)
+            - 0.5 * self._refimp_K_0_ao(X)
         )
         return F_0_ao
 
