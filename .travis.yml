@@ -7,15 +7,15 @@ python:
 cache: pip
 
 before_install:
-    - PYTHONPATH=$TRAVIS_BUILD_DIR/pyxdh:$PYTHONPATH
-    - CODECOV_TOKEN="26dd3c7d-3372-47f1-8ec4-addf2bb16706"
+    - export PYTHONPATH=$TRAVIS_BUILD_DIR/pyxdh:$PYTHONPATH
+    - export CODECOV_TOKEN="26dd3c7d-3372-47f1-8ec4-addf2bb16706"
     - cp $TRAVIS_BUILD_DIR/script/.pyscf_conf.py ~/.pyscf_conf.py
     - sudo apt-get update
     - sudo apt-get install -y pandoc
     - pip install -r requirements.txt
 
 script:
-    - pytest --disable-warnings --cov=$TRAVIS_BUILD_DIR
+    - pytest --disable-warnings --cov=$TRAVIS_BUILD_DIR/pyxdh
     - cd $TRAVIS_BUILD_DIR/docs &&
       make html
 
