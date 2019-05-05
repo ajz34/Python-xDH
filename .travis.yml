@@ -4,6 +4,8 @@ dist: xenial
 python:
     - "3.7"
 
+cache: pip
+
 before_install:
     - PYTHONPATH=$TRAVIS_BUILD_DIR/pyxdh:$PYTHONPATH
     - CODECOV_TOKEN="26dd3c7d-3372-47f1-8ec4-addf2bb16706"
