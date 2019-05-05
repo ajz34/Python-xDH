@@ -4,6 +4,7 @@ from pyscf.scf import _vhf
 import numpy as np
 from functools import partial
 import os, warnings, gc
+
 from utilities import timing, gccollect
 
 MAXMEM = float(os.getenv("MAXMEM", 2))

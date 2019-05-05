@@ -2,11 +2,12 @@ language: python
 os: linux
 dist: xenial
 python:
-    - 3.6
-    - 3.7
+    - "3.6"
+    - "3.7"
 
 env:
-    - PYTHONPATH=$TRAVIS_BUILD_DIR/src:$PYTHONPATH
+    - PYTHONPATH=$TRAVIS_BUILD_DIR/pyxdh:$PYTHONPATH
+    - CODECOV_TOKEN="26dd3c7d-3372-47f1-8ec4-addf2bb16706"
 
 before_install:
     - cp $TRAVIS_BUILD_DIR/script/.pyscf_conf.py ~/.pyscf_conf.py
@@ -15,7 +16,9 @@ before_install:
     - pip install -r requirements.txt
 
 script:
-    - pytest --disable-warnings
+    - pytest --disable-warnings --cov=$TRAVIS_BUILD_DIR/pyxdh
     - cd $TRAVIS_BUILD_DIR/docs &&
       make html
 
+after_success:
+    - codecov --token=$CODECOV_TOKEN

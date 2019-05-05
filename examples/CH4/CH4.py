@@ -1,10 +1,10 @@
 import sys
 sys.path.append('../../')
 
-from hf_helper import HFHelper
-from gga_helper import GGAHelper
-from ncgga_engine import NCGGAEngine
-from numeric_helper import NumericDiff
+from hessian.hf_helper import HFHelper
+from hessian.gga_helper import GGAHelper
+from hessian.ncgga_engine import NCGGAEngine
+from utilities.numeric_helper import NumericDiff
 import numpy as np
 from functools import partial
 from pyscf import gto, dft

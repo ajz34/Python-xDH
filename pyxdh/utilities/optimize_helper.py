@@ -61,11 +61,10 @@ class OptimizeHelper:
 
 if __name__ == '__main__':
     from pyscf import dft
-    from gga_helper import GGAHelper
-    from ncgga_engine import NCGGAEngine
+    from hessian.gga_helper import GGAHelper
+    from hessian.ncgga_engine import NCGGAEngine
     from pyscf import geomopt
     from pyscf import grad
-    import pyscf.grad.rks
 
     mol = gto.Mole()
     mol.atom = """

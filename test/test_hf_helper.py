@@ -1,5 +1,5 @@
 from pyscf import gto
-from hf_helper import HFHelper
+from hessian import HFHelper
 import numpy as np
 
 

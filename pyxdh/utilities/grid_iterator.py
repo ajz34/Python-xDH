@@ -355,7 +355,7 @@ class GridIterator:
 
 if __name__ == "__main__":
 
-    from grid_helper import GridHelper
+    from utilities.grid_helper import GridHelper
 
     mol = gto.Mole()
     mol.atom = """

@@ -2,15 +2,15 @@ from pyscf import gto, scf, grad, hessian, dft
 import pyscf.grad.rks
 import pyscf.hessian.rks
 import pyscf.dft.numint
-from hf_helper import HFHelper
-from grid_helper import GridHelper, KernelHelper
-from grid_iterator import GridIterator
-from utilities import timing, gccollect
 import numpy as np
 from functools import partial
 import os
 import warnings
 import gc
+
+from hessian.hf_helper import HFHelper
+from utilities import GridHelper, GridIterator, KernelHelper, timing, gccollect
+
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -19,9 +19,10 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 
 class GGAHelper(HFHelper):
 
-    def __init__(self, mol, xc, grids, init_scf=True):
+    def __init__(self, mol, xc, grids, init_scf=True, grdit_memory=2000):
         self.xc = xc  # type: str
         self.grids = grids  # type: dft.gen_grid.Grids
+        self.grdit_memory = grdit_memory
         self.scf_eng = None  # type: dft.rks.RKS
         self.scf_grad = None  # type: pyscf.grad.rks.Gradient
         self.scf_hess = None  # type: hessian.rks.Hessian
@@ -133,7 +134,7 @@ class GGAHelper(HFHelper):
                     + 1 * self.scf_eng.get_j(dm=dmX)
                     - 0.5 * cx * self.scf_eng.get_k(dm=dmX)
                 )
-            grdit = GridIterator(self.mol, self.grids, self.D, deriv=2)
+            grdit = GridIterator(self.mol, self.grids, self.D, deriv=2, memory=self.grdit_memory)
             for grdh in grdit:
                 kerh = KernelHelper(grdh, self.xc)
                 for idx, dmX in enumerate(dm1):
@@ -188,7 +189,7 @@ class GGAHelper(HFHelper):
 
         F_2_ao_GGA = np.zeros((natm, natm, 3, 3, nao, nao))
 
-        grdit = GridIterator(self.mol, self.grids, self.D, deriv=3)
+        grdit = GridIterator(self.mol, self.grids, self.D, deriv=3, memory=self.grdit_memory)
         for grdh in grdit:
             kerh = KernelHelper(grdh, self.xc, deriv=3)
             pd_fr = kerh.frr * grdh.A_rho_1 + kerh.frg * grdh.A_gamma_1
@@ -283,7 +284,7 @@ class GGAHelper(HFHelper):
                 for s in range(dm1.shape[1]):
                     dmX = dm1[B, s]
 
-                    grdit = GridIterator(self.mol, self.grids, self.D, deriv=3)
+                    grdit = GridIterator(self.mol, self.grids, self.D, deriv=3, memory=self.grdit_memory)
                     for grdh in grdit:
                         kerh = KernelHelper(grdh, self.xc, deriv=3)
                         # Define some kernel and density derivative alias

@@ -1,10 +1,11 @@
 from pyscf import dft
 import pyscf.dft.numint
 import numpy as np
-from grid_iterator import GridIterator
 from functools import partial
 import os
 import warnings
+
+from utilities.grid_iterator import GridIterator
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])

@@ -3,9 +3,9 @@ sys.path.append('../../')
 os.environ["MAXMEM"] = "1.5"
 os.environ["LOGLEVEL"] = "2"
 
-from hf_helper import HFHelper
-from gga_helper import GGAHelper
-from ncgga_engine import NCGGAEngine
+from hessian.hf_helper import HFHelper
+from hessian.gga_helper import GGAHelper
+from hessian.ncgga_engine import NCGGAEngine
 import numpy as np
 from functools import partial
 from pyscf import gto, dft

@@ -1,27 +1,26 @@
-from hf_helper import HFHelper
-from gga_helper import GGAHelper
-from ncgga_engine import NCGGAEngine
-from numeric_helper import NumericDiff
+from hessian.gga_helper import GGAHelper
+from hessian.ncgga_engine import NCGGAEngine
+from utilities.numeric_helper import NumericDiff
 import numpy as np
 from pyscf import gto, dft
 import pickle
-from utilities import timing_level
+from utilities.utilities import timing_level
 
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
 @timing_level(0)
 def get_numeric_0(mol, grids):
-    scfh = HFHelper(mol, init_scf=True)
-    nch = GGAHelper(mol, "b3lypg", grids, init_scf=False)
+    scfh = GGAHelper(mol, "b3lypg", grids, init_scf=True)
+    nch = GGAHelper(mol, "pbe0", grids, init_scf=False)
     ncengine = NCGGAEngine(scfh, nch)
     return ncengine.get_E_0()
 
 
 @timing_level(0)
 def get_numeric_1(mol, grids):
-    scfh = HFHelper(mol, init_scf=True)
-    nch = GGAHelper(mol, "b3lypg", grids, init_scf=False)
+    scfh = GGAHelper(mol, "b3lypg", grids, init_scf=True)
+    nch = GGAHelper(mol, "pbe0", grids, init_scf=False)
     ncengine = NCGGAEngine(scfh, nch)
     return ncengine.get_E_1()
 
@@ -29,8 +28,8 @@ def get_numeric_1(mol, grids):
 @timing_level(0)
 def get_nc(mol, grids):
 
-    scfh = HFHelper(mol, init_scf=True)
-    nch = GGAHelper(mol, "b3lypg", grids, init_scf=False)
+    scfh = GGAHelper(mol, "b3lypg", grids, init_scf=True)
+    nch = GGAHelper(mol, "pbe0", grids, init_scf=False)
     ncengine = NCGGAEngine(scfh, nch)
 
     d = {

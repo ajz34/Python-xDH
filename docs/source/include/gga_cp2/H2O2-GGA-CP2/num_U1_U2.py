@@ -1,5 +1,5 @@
 import sys, os
-sys.path.append('../../src')
+sys.path.append('../../pyxdh')
 
 MAXCORE = "8"
 os.environ["MAXMEM"] = "12"
@@ -11,15 +11,12 @@ os.environ["NUMEXPR_NUM_THREADS"] = MAXCORE
 os.environ["LOGLEVEL"] = "2"
 
 import numpy as np
-from pyscf import scf, gto, lib, grad, hessian, dft
+from pyscf import gto, dft
 from functools import partial
 
 import pickle
-from utilities import val_from_fchk
-from hf_helper import HFHelper
-from numeric_helper import NumericDiff
-from gga_helper import GGAHelper
-from grid_helper import GridHelper, KernelHelper
+from utilities.numeric_helper import NumericDiff
+from hessian.gga_helper import GGAHelper
 
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * 2 / 8])
 np.einsum_path = partial(np.einsum_path, optimize=["greedy", 1024 ** 3 * 2 / 8])

@@ -13,8 +13,8 @@ import numpy as np
 from pyscf import gto, dft
 from functools import partial
 import pickle
-from numeric_helper import NumericDiff
-from gga_helper import GGAHelper
+from utilities.numeric_helper import NumericDiff
+from hessian.gga_helper import GGAHelper
 
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * 2 / 8])
 np.einsum_path = partial(np.einsum_path, optimize=["greedy", 1024 ** 3 * 2 / 8])

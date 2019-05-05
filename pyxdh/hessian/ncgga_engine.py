@@ -1,13 +1,12 @@
-from hf_helper import HFHelper
-from gga_helper import GGAHelper
-from grid_iterator import GridIterator
-from grid_helper import KernelHelper
-from utilities import timing, gccollect
 import numpy as np
 from functools import partial
 from pyscf import scf, lib
 import pyscf.scf.cphf
 import os, warnings
+
+from hessian import HFHelper, GGAHelper
+from utilities import GridIterator, KernelHelper, timing, gccollect
+
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -16,10 +15,11 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 
 class NCGGAEngine:
 
-    def __init__(self, scfh, nch):
+    def __init__(self, scfh, nch, grdit_memory=2000):
 
         self.scfh = scfh  # type: GGAHelper
         self.nch = nch  # type: GGAHelper
+        self.grdit_memory = grdit_memory
 
         self.nch.C = self.scfh.C
         self.nch.mo_occ = self.scfh.mo_occ
@@ -116,7 +116,7 @@ class NCGGAEngine:
         natm = scfh.natm
 
         E_S = np.einsum("Atuv, uv -> At", scfh.H_1_ao, D)
-        grdit = GridIterator(scfh.mol, nch.grids, D, deriv=2)
+        grdit = GridIterator(scfh.mol, nch.grids, D, deriv=2, memory=self.grdit_memory)
         for grdh in grdit:
             kerh = KernelHelper(grdh, nch.xc)
             E_S += (
@@ -160,7 +160,7 @@ class NCGGAEngine:
         E_SS_GGA_contrib1 = np.zeros((natm, natm, 3, 3))
         E_SS_GGA_contrib2 = np.zeros((natm, natm, 3, 3))
         E_SS_GGA_contrib3 = np.zeros((natm, natm, 3, 3))
-        grdit = GridIterator(scfh.mol, nch.grids, D, deriv=3)
+        grdit = GridIterator(scfh.mol, nch.grids, D, deriv=3, memory=self.grdit_memory)
         for grdh in grdit:
             kerh = KernelHelper(grdh, nch.xc)
 

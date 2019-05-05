@@ -2,12 +2,12 @@ import numpy as np
 from pyscf import gto, dft
 from functools import partial
 
-import sys, gc, os
+import sys, os
 sys.path.append('../../')
 os.environ["LOGLEVEL"] = "2"
 import pickle
-from gga_helper import GGAHelper
-from utilities import timing_level
+from hessian.gga_helper import GGAHelper
+from utilities.utilities import timing_level
 
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * 10 / 8])
 np.einsum_path = partial(np.einsum_path, optimize=["greedy", 1024 ** 3 * 10 / 8])
