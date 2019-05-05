@@ -17,7 +17,8 @@ before_install:
 script:
     - pytest --disable-warnings --cov=$TRAVIS_BUILD_DIR/pyxdh
     - cd $TRAVIS_BUILD_DIR/docs &&
-      make html
+      make html &&
+      cd -
 
 after_success:
     - coverage combine
