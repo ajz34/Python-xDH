@@ -10,4 +10,4 @@ Source code is placed under directory `pyxdh`. Python testing (pytest) is placed
 
 Algorithm tutorial and documentation is placed under `docs`.
 
-Build status is powered by Travis-CI. Currently, build status indicates how the 
+Build status is powered by Travis-CI. Currently, build status indicates successfulness of pytest and documentation build.

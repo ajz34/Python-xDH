@@ -20,4 +20,5 @@ script:
       make html
 
 after_success:
+    - coverage combine
     - codecov --token=$CODECOV_TOKEN
