@@ -20,11 +20,13 @@
    basic_gga
    helpers
    rhf_grad
-   u_rhf
-   grad_gga
-   grad_hf_ncgga
-   hess_hf_ncgga
+   rhf_u
+   gga_grad
+   hfgga_grad
+   hfgga_hess
    gga_cp2
+   mp2_grad
+   xyg3_grad
    docstrings
 
 

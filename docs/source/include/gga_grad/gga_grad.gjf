@@ -1,5 +1,5 @@
 %chk=gga_grad
-#p RB3LYP/6-31G nosymm SCF(VeryTight) Integral(Grid=99590) Freq
+#p RB3LYP/6-31G nosymm SCF(VeryTight) Integral(Grid=75302) Freq
 
 B3LYP Gradient
 
