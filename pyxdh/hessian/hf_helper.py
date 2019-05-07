@@ -1003,6 +1003,39 @@ class HFHelper:
         return B_2_vo
 
     @timing
+    def _get_B_2(self):
+        sv = self.sv
+        so = self.so
+        sa = self.sa
+        eo = self.eo
+        e = self.e
+        U_1 = self.U_1
+        F_1_mo = self.F_1_mo
+        Ax0_Core = self.Ax0_Core
+        Ax1_Core = self.Ax1_Core
+        B_2 = (
+            # line 1
+            0.5 * np.einsum("ABtsuv, ua, vi -> ABtsai", self.F_2_ao, self.C, self.C)
+            - 0.5 * np.einsum("ABtsai, i -> ABtsai", self.Xi_2, e)
+            - 0.25 * Ax0_Core(sa, sa, so, so)(self.Xi_2[:, :, :, :, so, so])
+            # line 2
+            + np.einsum("Atpa, Bspi -> ABtsai", U_1, F_1_mo)
+            + np.einsum("Atpi, Bspa -> ABtsai", U_1, F_1_mo)
+            # line 3
+            + np.einsum("Atpa, Bspi, p -> ABtsai", U_1, U_1, e)
+            # line 4
+            + 0.5 * Ax0_Core(sa, sa, sa, sa)(np.einsum("Atkm, Bslm -> ABtskl", U_1[:, :, :, so], U_1[:, :, :, so]))
+            # line 5
+            + np.einsum("Atpa, Bspi -> ABtsai", U_1, Ax0_Core(sa, sa, sa, so)(U_1[:, :, :, so]))
+            # line 6
+            + np.einsum("Atpi, Bspa -> ABtsai", U_1, Ax0_Core(sa, sa, sa, so)(U_1[:, :, :, so]))
+            # line 7
+            + Ax1_Core(sa, sa, sa, so)(U_1[:, :, :, so])
+        )
+        B_2 += B_2.transpose((1, 0, 3, 2, 4, 5))
+        return B_2
+
+    @timing
     def _get_U_2_vo(self):
         sv = self.sv
         so = self.so
