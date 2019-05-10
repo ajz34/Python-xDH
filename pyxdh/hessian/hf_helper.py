@@ -871,7 +871,7 @@ class HFHelper:
         return self.H_2_ao + self.F_2_ao_Jcontrib - 0.5 * self.F_2_ao_Kcontrib
 
     def _get_F_2_mo(self):
-        return np.einsum("ABtsuv, up, vq -> pq", self.F_2_ao, self.C, self.C)
+        return np.einsum("ABtsuv, up, vq -> ABtspq", self.F_2_ao, self.C, self.C)
 
     def _get_B_1(self):
         sa = self.sa
