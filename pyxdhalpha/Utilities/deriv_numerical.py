@@ -127,52 +127,35 @@ class DipoleDerivGenerator(AbstractDerivGenerator):
             self.objects[t, h] = self.mf_func(t, dev_h[h] * self.interval)
 
 
-class Test_DerivGenerator:
-
-    def __init__(self):
-        mol = gto.Mole()
-        mol.atom = """
-        O  0.0  0.0  0.0
-        O  0.0  0.0  1.5
-        H  1.0  0.0  0.0
-        H  0.0  1.0  0.7
-        """
-        mol.basis = "6-31G"
-        mol.verbose = 0
-        mol.build()
-        scf_eng = scf.RHF(mol)
-        scf_eng.kernel()
-        scf_grad = grad.RHF(scf_eng)
-        scf_grad.kernel()
-
-        self.mol = mol
-        self.scf_eng = scf_eng
-        self.scf_grad = scf_grad
-
+class Test_DerivNumerical:
 
     def test_NucCoordDerivGenerator_by_SCFgrad(self):
-        mol = self.mol
-        scf_grad = self.scf_grad
+        from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+        H2O2 = Mol_H2O2()
+        mol = H2O2.mol
+        hf_grad = H2O2.hf_grad
 
         generator = NucCoordDerivGenerator(mol, lambda mol_: scf.RHF(mol_).run())
         diff = NumericDiff(generator, lambda mf: mf.e_tot)
         assert np.allclose(
-            scf_grad.de,
+            hf_grad.de,
             diff.derivative.reshape(mol.natm, 3),
             atol=1e-6, rtol=1e-4
         )
 
         generator = NucCoordDerivGenerator(mol, lambda mol_: scf.RHF(mol_).run(), stencil=5)
         diff = NumericDiff(generator, lambda mf: mf.e_tot)
-        assert np.allclose(
-            scf_grad.de,
+        assert(np.allclose(
+            hf_grad.de,
             diff.derivative.reshape(mol.natm, 3),
             atol=1e-6, rtol=1e-4
-        )
+        ))
 
     def test_DipoleDerivGenerator_by_SCF(self):
-        mol = self.mol
-        scf_eng = self.scf_eng
+        from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+        H2O2 = Mol_H2O2()
+        mol = H2O2.mol
+        hf_eng = H2O2.hf_eng
 
         def mf_func(t, interval):
             mf = scf.RHF(mol)
@@ -184,7 +167,7 @@ class Test_DerivGenerator:
         dip_nuc = np.einsum('i,ix->x', mol.atom_charges(), mol.atom_coords())
         assert(np.allclose(
             diff.derivative + dip_nuc,
-            scf_eng.dip_moment(unit="A.U."),
+            hf_eng.dip_moment(unit="A.U."),
             atol=1e-6, rtol=1e-4
         ))
 
@@ -192,12 +175,6 @@ class Test_DerivGenerator:
         diff = NumericDiff(generator)
         assert(np.allclose(
             diff.derivative + dip_nuc,
-            scf_eng.dip_moment(unit="A.U."),
+            hf_eng.dip_moment(unit="A.U."),
             atol=1e-6, rtol=1e-4
         ))
-
-
-if __name__ == '__main__':
-    test = Test_DerivGenerator()
-    test.test_DipoleDerivGenerator_by_SCF()
-    test.test_NucCoordDerivGenerator_by_SCFgrad()
