@@ -100,9 +100,36 @@ class NumericDiff(AbstractDerivGenerator):
         return self._derivative
 
 
+class DipoleDerivGenerator(AbstractDerivGenerator):
+
+    def __init__(self, mf_func, stencil=3, interval=1e-6):
+        super(DipoleDerivGenerator, self).__init__()
+        self.mf_func = mf_func
+        self.objects = NotImplemented
+        self.stencil = stencil
+        self.interval = interval
+        self.init_objects()
+        self.mf_func = mf_func
+        self.perform_mf()
+
+    def init_objects(self):
+        self.objects = np.empty((3, self.stencil - 1), dtype=object)
+
+    def perform_mf(self):
+        looplist = [(t, h)
+                    for t in range(3)
+                    for h in range(self.stencil - 1)]
+        if self.stencil == 5:
+            dev_h = [-2, -1, 1, 2]
+        else:
+            dev_h = [-1, 1]
+        for t, h in looplist:
+            self.objects[t, h] = self.mf_func(t, dev_h[h] * self.interval)
+
+
 class Test_DerivGenerator:
 
-    def test_NucCoordDerivGenerator_by_SCFgrad(self):
+    def __init__(self):
         mol = gto.Mole()
         mol.atom = """
         O  0.0  0.0  0.0
@@ -117,6 +144,15 @@ class Test_DerivGenerator:
         scf_eng.kernel()
         scf_grad = grad.RHF(scf_eng)
         scf_grad.kernel()
+
+        self.mol = mol
+        self.scf_eng = scf_eng
+        self.scf_grad = scf_grad
+
+
+    def test_NucCoordDerivGenerator_by_SCFgrad(self):
+        mol = self.mol
+        scf_grad = self.scf_grad
 
         generator = NucCoordDerivGenerator(mol, lambda mol_: scf.RHF(mol_).run())
         diff = NumericDiff(generator, lambda mf: mf.e_tot)
@@ -133,3 +169,35 @@ class Test_DerivGenerator:
             diff.derivative.reshape(mol.natm, 3),
             atol=1e-6, rtol=1e-4
         )
+
+    def test_DipoleDerivGenerator_by_SCF(self):
+        mol = self.mol
+        scf_eng = self.scf_eng
+
+        def mf_func(t, interval):
+            mf = scf.RHF(mol)
+            mf.get_hcore = lambda mol_: scf.rhf.get_hcore(mol_) - interval * mol_.intor("int1e_r")[t]
+            return mf.kernel()
+
+        generator = DipoleDerivGenerator(mf_func)
+        diff = NumericDiff(generator)
+        dip_nuc = np.einsum('i,ix->x', mol.atom_charges(), mol.atom_coords())
+        assert(np.allclose(
+            diff.derivative + dip_nuc,
+            scf_eng.dip_moment(unit="A.U."),
+            atol=1e-6, rtol=1e-4
+        ))
+
+        generator = DipoleDerivGenerator(mf_func, stencil=5)
+        diff = NumericDiff(generator)
+        assert(np.allclose(
+            diff.derivative + dip_nuc,
+            scf_eng.dip_moment(unit="A.U."),
+            atol=1e-6, rtol=1e-4
+        ))
+
+
+if __name__ == '__main__':
+    test = Test_DerivGenerator()
+    test.test_DipoleDerivGenerator_by_SCF()
+    test.test_NucCoordDerivGenerator_by_SCFgrad()
