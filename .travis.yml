@@ -1,8 +1,9 @@
 language: python
-os: linux
-dist: xenial
 python:
     - "3.7"
+
+os: linux
+dist: xenial
 
 cache: pip
 
@@ -12,14 +13,14 @@ before_install:
     - cp $TRAVIS_BUILD_DIR/script/.pyscf_conf.py ~/.pyscf_conf.py
     - pip install -r requirements.txt
 
-jobs:
+matrix:
     include:
         - name: "Deprecated pyxdh"
           script:
                 pytest --disable-warnings
         - name: "pyxdhalpha"
           script:
-                pytest --disable-warnings --cov=$TRAVIS_BUILD_DIR/pyxdhalpha
+                pytest $TRAVIS_BUILD_DIR/pyxdhalpha --disable-warnings --cov=$TRAVIS_BUILD_DIR/pyxdhalpha
         - name: "Deprecated Document"
           script:
             cd $TRAVIS_BUILD_DIR/docs &&
