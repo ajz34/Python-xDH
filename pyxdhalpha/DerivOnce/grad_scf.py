@@ -2,11 +2,10 @@ import numpy as np
 from functools import partial
 import os
 
-from pyscf import gto, scf, dft, grad, hessian, lib
-import pyscf.dft.numint
-import pyscf.scf.cphf
+from pyscf import grad
 
 from pyxdhalpha.DerivOnce.deriv_once import DerivOnce
+from pyxdhalpha.Utilities import GridIterator, KernelHelper
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -48,6 +47,40 @@ class GradSCF(DerivOnce):
             eri1_ao[A, :, :, :, sA, :] -= int2e_ip1[:, sA].transpose(0, 3, 4, 1, 2)
             eri1_ao[A, :, :, :, :, sA] -= int2e_ip1[:, sA].transpose(0, 3, 4, 2, 1)
         return eri1_ao.reshape(-1, self.nao, self.nao, self.nao, self.nao)
+    
+    def _get_E_1(self):
+        D = self.D
+        H_1_ao = self.H_1_ao
+        eri1_ao = self.eri1_ao
+        S_1_ao = self.S_1_ao
+        Co = self.Co
+        eo = self.eo
+        mol = self.mol
+        natm = self.natm
+        grids = self.grids
+        grdit_memory = self.grdit_memory
+        cx = self.cx
+        xc = self.xc
+
+        grad_total = (
+            + np.einsum("Auv, uv -> A", H_1_ao, D)
+            + 0.5 * np.einsum("Auvkl, uv, kl -> A", eri1_ao, D, D)
+            - 0.25 * cx * np.einsum("Aukvl, uv, kl -> A", eri1_ao, D, D)
+            - 2 * np.einsum("Auv, ui, i, vi -> A", S_1_ao, Co, eo, Co)
+            + grad.rhf.grad_nuc(mol).reshape(-1)
+        )
+
+        # GGA part contiribution
+        if self.xc_type == "GGA":
+            grdit = GridIterator(mol, grids, D, deriv=2, memory=grdit_memory)
+            for grdh in grdit:
+                kerh = KernelHelper(grdh, xc)
+                grad_total += (
+                    + np.einsum("g, Atg -> At", kerh.fr, grdh.A_rho_1)
+                    + 2 * np.einsum("g, rg, Atrg -> At", kerh.fg, grdh.rho_1, grdh.A_rho_2)
+                ).reshape(-1)
+
+        return grad_total.reshape(natm, 3)
 
 
 class Test_GradSCF:
@@ -61,32 +94,16 @@ class Test_GradSCF:
         H2O2 = Mol_H2O2()
         gsh = GradSCF(H2O2.hf_eng)
         hf_grad = gsh.scf_grad
-        D = gsh.D
-        H_1_ao = gsh.H_1_ao
-        eri1_ao = gsh.eri1_ao
-        S_1_ao = gsh.S_1_ao
-        Co = gsh.Co
-        eo = gsh.eo
-        mol = gsh.mol
-        natm = gsh.natm
-
-        grad_total = (
-            + np.einsum("Auv, uv -> A", H_1_ao, D)
-            + 0.5 * np.einsum("Auvkl, uv, kl -> A", eri1_ao, D, D)
-            - 0.25 * np.einsum("Aukvl, uv, kl -> A", eri1_ao, D, D)
-            - 2 * np.einsum("Auv, ui, i, vi -> A", S_1_ao, Co, eo, Co)
-            + grad.rhf.grad_nuc(mol).reshape(-1)
-        )
 
         assert(np.allclose(
-            grad_total.reshape(natm, 3), hf_grad.grad(),
+            gsh.E_1, hf_grad.grad(),
             atol=1e-6, rtol=1e-4
         ))
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-HF-freq.fchk"))
 
         assert(np.allclose(
-            grad_total.reshape(natm, 3), formchk.grad(),
+            gsh.E_1, formchk.grad(),
             atol=1e-6, rtol=1e-4
         ))
 
@@ -95,43 +112,13 @@ class Test_GradSCF:
         from pkg_resources import resource_filename
         from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
         from pyxdhalpha.Utilities import FormchkInterface
-        from pyxdhalpha.Utilities import GridIterator, KernelHelper
 
         H2O2 = Mol_H2O2()
         gsh = GradSCF(H2O2.gga_eng)
         gga_grad = gsh.scf_grad
-        D = gsh.D
-        H_1_ao = gsh.H_1_ao
-        eri1_ao = gsh.eri1_ao
-        S_1_ao = gsh.S_1_ao
-        Co = gsh.Co
-        eo = gsh.eo
-        mol = gsh.mol
-        natm = gsh.natm
-        grids = gsh.grids
-        grdit_memory = gsh.grdit_memory
-        cx = gsh.cx
-        xc = gsh.xc
-
-        grad_total = (
-            + np.einsum("Auv, uv -> A", H_1_ao, D)
-            + 0.5 * np.einsum("Auvkl, uv, kl -> A", eri1_ao, D, D)
-            - 0.25 * cx * np.einsum("Aukvl, uv, kl -> A", eri1_ao, D, D)
-            - 2 * np.einsum("Auv, ui, i, vi -> A", S_1_ao, Co, eo, Co)
-            + grad.rhf.grad_nuc(mol).reshape(-1)
-        )
-
-        # GGA part contiribution
-        grdit = GridIterator(mol, grids, D, deriv=2, memory=grdit_memory)
-        for grdh in grdit:
-            kerh = KernelHelper(grdh, xc)
-            grad_total += (
-                + np.einsum("g, Atg -> At", kerh.fr, grdh.A_rho_1)
-                + 2 * np.einsum("g, rg, Atrg -> At", kerh.fg, grdh.rho_1, grdh.A_rho_2)
-            ).reshape(-1)
 
         assert(np.allclose(
-            grad_total.reshape(natm, 3), gga_grad.grad(),
+            gsh.E_1, gga_grad.grad(),
             atol=1e-6, rtol=1e-4
         ))
 
@@ -139,6 +126,6 @@ class Test_GradSCF:
 
         # TODO: This is a weaker compare! Try to modulize that someday.
         assert(np.allclose(
-            grad_total.reshape(natm, 3), formchk.grad(),
+            gsh.E_1, formchk.grad(),
             atol=1e-5, rtol=1e-4
         ))

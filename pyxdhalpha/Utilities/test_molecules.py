@@ -3,7 +3,7 @@ from pyscf import scf, gto, grad, dft, hessian
 
 class Mol_H2O2:
 
-    def __init__(self):
+    def __init__(self, xc="B3LYPg"):
         mol = gto.Mole()
         mol.atom = """
         O  0.0  0.0  0.0
@@ -16,6 +16,7 @@ class Mol_H2O2:
         mol.build()
 
         self.mol = mol
+        self.xc = xc
 
         self._hf_eng = NotImplemented
         self._hf_grad = NotImplemented
@@ -55,7 +56,7 @@ class Mol_H2O2:
         gga_eng.conv_tol = 1e-11
         gga_eng.conv_tol_grad = 1e-9
         gga_eng.max_cycle = 100
-        gga_eng.xc = "B3LYPg"
+        gga_eng.xc = self.xc
         gga_eng.kernel()
 
         self._gga_eng = gga_eng

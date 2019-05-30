@@ -59,6 +59,8 @@ class DerivOnce(ABC):
         self._eri1_mo = NotImplemented
         self._eri2_ao = NotImplemented
         self._eri2_mo = NotImplemented
+        # E1
+        self._E_1 = NotImplemented
         # Initializer
         self.initialization()
         return
@@ -281,7 +283,7 @@ class DerivOnce(ABC):
 
     @property
     def B_1(self):
-        if self._B_1 is None:
+        if self._B_1 is NotImplemented:
             self._B_1 = self._get_B_1()
         return self._B_1
 
@@ -295,9 +297,15 @@ class DerivOnce(ABC):
 
     @property
     def U_1(self):
-        if self._U_1 is None:
-            self._get_U_1()
+        if self._U_1 is NotImplemented:
+            self._U_1 = self._get_U_1()
         return self._U_1
+
+    @property
+    def E_1(self):
+        if self._E_1 is NotImplemented:
+            self._E_1 = self._get_E_1()
+        return self._E_1
 
     # endregion
 
@@ -514,5 +522,9 @@ class DerivOnce(ABC):
 
         self._U_1 = U_1_pq
         return self._U_1
+
+    @abstractmethod
+    def _get_E_1(self):
+        pass
 
     # endregion
