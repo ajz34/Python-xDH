@@ -43,7 +43,7 @@ class GradXDH(DerivOnceXDH, GradMP2):
             + np.einsum("pq, Apq -> A", self.W_I, self.S_1_mo)
             + 2 * np.einsum("iajb, Aiajb -> A", self.T_iajb, self.eri1_mo[:, so, sv, so, sv])
         ).reshape(natm, 3)
-        E_1 += self.nc_deriv._get_E_1()
+        E_1 += super(self.DerivOnceNCGGAClass, self.nc_deriv)._get_E_1()
         return E_1
 
 

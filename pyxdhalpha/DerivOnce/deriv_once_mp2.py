@@ -152,5 +152,5 @@ class DerivOnceXDH(DerivOnceMP2, ABC):
 
     def _get_L(self):
         L = super(DerivOnceXDH, self)._get_L()
-        L += self.nc_deriv.F_0_mo[self.sv, self.so]
+        L += 4 * self.nc_deriv.F_0_mo[self.sv, self.so]
         return L
