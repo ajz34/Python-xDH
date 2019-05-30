@@ -1,6 +1,8 @@
 # Python-xDH Project
 
-| **Status** | [![Build Status](https://travis-ci.com/ajz34/Python-xDH.svg?token=WfHY4ttcvEkeEB1Qy5xj&branch=master)](https://travis-ci.com/ajz34/Python-xDH) |
+**Status**: [![Build Status](https://travis-ci.com/ajz34/Python-xDH.svg?token=WfHY4ttcvEkeEB1Qy5xj&branch=master)](https://travis-ci.com/ajz34/Python-xDH) 
+
+**Code coverage**: [![codecov](https://codecov.io/gh/ajz34/Python-xDH/branch/master/graph/badge.svg?token=y7n4ZkoveL)](https://codecov.io/gh/ajz34/Python-xDH)
 
 This is currently a private project.
 
