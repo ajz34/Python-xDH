@@ -180,7 +180,7 @@ class KernelHelper:
 
 class Test_GridHelper:
 
-    def test(self):
+    def test_high_coordinate_derivative_accordance(self):
 
         from pyscf import gto
 

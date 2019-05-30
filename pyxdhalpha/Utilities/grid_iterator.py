@@ -355,7 +355,7 @@ class GridIterator:
 
 class Test_GridIterator:
 
-    def test(self):
+    def test_accordance_with_GridHelper(self):
 
         from pyxdhalpha.Utilities.grid_helper import GridHelper
 
@@ -382,13 +382,17 @@ class Test_GridIterator:
         grdit = GridIterator(mol, grids, dmX, deriv=3, memory=100)
 
         # Should be able to save all grids in memory
+        idx = 0
         for grdi in grdit:
-            assert(np.allclose(grdh.rho_0, grdi.rho_0))
-            assert(np.allclose(grdh.rho_1, grdi.rho_1))
-            assert(np.allclose(grdh.rho_2, grdi.rho_2))
-            assert(np.allclose(grdh.A_rho_1, grdi.A_rho_1))
-            assert(np.allclose(grdh.A_rho_2, grdi.A_rho_2))
-            assert(np.allclose(grdh.AB_rho_2, grdi.AB_rho_2))
-            assert(np.allclose(grdh.AB_rho_3, grdi.AB_rho_3))
-            assert(np.allclose(grdh.A_gamma_1, grdi.A_gamma_1))
-            assert(np.allclose(grdh.AB_gamma_2, grdi.AB_gamma_2))
+            inc = grdi.rho_0.shape[0]
+            s = slice(idx, idx + inc)
+            assert(np.allclose(grdh.rho_0[s], grdi.rho_0))
+            assert(np.allclose(grdh.rho_1[:, s], grdi.rho_1))
+            assert(np.allclose(grdh.rho_2[:, :, s], grdi.rho_2))
+            assert(np.allclose(grdh.A_rho_1[:, :, s], grdi.A_rho_1))
+            assert(np.allclose(grdh.A_rho_2[:, :, :, s], grdi.A_rho_2))
+            assert(np.allclose(grdh.AB_rho_2[:, :, :, :, s], grdi.AB_rho_2))
+            assert(np.allclose(grdh.AB_rho_3[:, :, :, :, :, s], grdi.AB_rho_3))
+            assert(np.allclose(grdh.A_gamma_1[:, :, s], grdi.A_gamma_1))
+            assert(np.allclose(grdh.AB_gamma_2[:, :, :, :, s], grdi.AB_gamma_2))
+            idx += inc

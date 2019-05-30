@@ -6,7 +6,7 @@ from pyscf import gto, scf, dft, grad, hessian, lib
 import pyscf.dft.numint
 import pyscf.scf.cphf
 
-from pyxdhalpha.Utilities import DerivArray, timing, GridIterator
+from pyxdhalpha.Utilities import timing, GridIterator
 from pyxdhalpha.Utilities.grid_helper import KernelHelper
 from pyxdhalpha.DerivOnce.deriv_once import DerivOnce
 

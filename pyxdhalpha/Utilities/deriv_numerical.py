@@ -1,5 +1,5 @@
 import numpy as np
-from pyscf import gto, scf, lib, grad
+from pyscf import gto, scf, lib
 
 
 class AbstractDerivGenerator:
@@ -137,11 +137,11 @@ class Test_DerivNumerical:
 
         generator = NucCoordDerivGenerator(mol, lambda mol_: scf.RHF(mol_).run())
         diff = NumericDiff(generator, lambda mf: mf.e_tot)
-        assert np.allclose(
+        assert(np.allclose(
             hf_grad.de,
             diff.derivative.reshape(mol.natm, 3),
             atol=1e-6, rtol=1e-4
-        )
+        ))
 
         generator = NucCoordDerivGenerator(mol, lambda mol_: scf.RHF(mol_).run(), stencil=5)
         diff = NumericDiff(generator, lambda mf: mf.e_tot)

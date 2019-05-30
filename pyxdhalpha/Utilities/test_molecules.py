@@ -9,7 +9,7 @@ class Mol_H2O2:
         O  0.0  0.0  0.0
         O  0.0  0.0  1.5
         H  1.0  0.0  0.0
-        H  0.0  1.0  0.7
+        H  0.0  0.7  1.0
         """
         mol.basis = "6-31G"
         mol.verbose = 0
