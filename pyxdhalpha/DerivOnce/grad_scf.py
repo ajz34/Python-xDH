@@ -55,7 +55,11 @@ class GradSCF(DerivOnce):
 class Test_GradSCF:
 
     def test_HF_grad(self):
+
         from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+        from pyxdhalpha.Utilities import FormchkInterface
+        from pkg_resources import resource_filename
+
         H2O2 = Mol_H2O2()
         gsh = GradSCF(H2O2.hf_eng)
         hf_grad = gsh.scf_grad
@@ -65,11 +69,25 @@ class Test_GradSCF:
         S_1_ao = gsh.S_1_ao
         Co = gsh.Co
         eo = gsh.eo
+        mol = gsh.mol
+        natm = gsh.natm
 
-        assert(np.allclose(
+        grad_total = (
             + np.einsum("Auv, uv -> A", H_1_ao, D)
             + 0.5 * np.einsum("Auvkl, uv, kl -> A", eri1_ao, D, D)
             - 0.25 * np.einsum("Aukvl, uv, kl -> A", eri1_ao, D, D)
-            - 2 * np.einsum("Auv, ui, i, vi -> A", S_1_ao, Co, eo, Co),
-            hf_grad.grad_elec().reshape(-1)
+            - 2 * np.einsum("Auv, ui, i, vi -> A", S_1_ao, Co, eo, Co)
+            + grad.rhf.grad_nuc(mol).reshape(-1)
+        )
+
+        assert(np.allclose(
+            grad_total.reshape(natm, 3), hf_grad.grad(),
+            atol=1e-6, rtol=1e-4
+        ))
+
+        formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-HF-freq.fchk"))
+
+        assert(np.allclose(
+            grad_total.reshape(natm, 3), formchk.grad(),
+            atol=1e-6, rtol=1e-4
         ))

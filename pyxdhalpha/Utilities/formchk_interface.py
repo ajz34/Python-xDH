@@ -11,9 +11,9 @@ class FormchkInterface:
         self.initialization()
 
     def initialization(self):
-        self.natm = self.key_to_value("Number of atoms")
-        self.nao = self.key_to_value("Number of basis functions")
-        self.nmo = self.key_to_value("Number of independent functions")
+        self.natm = int(self.key_to_value("Number of atoms"))
+        self.nao = int(self.key_to_value("Number of basis functions"))
+        self.nmo = int(self.key_to_value("Number of independent functions"))
 
     def key_to_value(self, key, file_path=None):
         if file_path is None:
