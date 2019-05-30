@@ -8,8 +8,7 @@ from pyscf import gto, scf, dft, grad, hessian, lib
 import pyscf.dft.numint
 import pyscf.scf.cphf
 
-from pyxdhalpha.Utilities import timing, GridIterator
-from pyxdhalpha.Utilities.grid_helper import KernelHelper
+from pyxdhalpha.Utilities import timing, GridIterator, KernelHelper
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
