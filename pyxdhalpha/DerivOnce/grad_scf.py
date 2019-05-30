@@ -14,6 +14,9 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 
 class GradSCF(DerivOnce):
 
+    def __init__(self, scf_eng, rotation=True, grdit_memory=2000):
+        super(GradSCF, self).__init__(scf_eng, rotation, grdit_memory)
+
     def Ax1_Core(self, si, sj, sk, sl):
         raise NotImplementedError("This is still under construction...")
 
@@ -21,7 +24,7 @@ class GradSCF(DerivOnce):
         return np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)]).reshape(-1, self.nao, self.nao)
 
     def _get_F_1_ao(self):
-        return self.scf_hess.make_h1(self.C, self.mo_occ).reshape(-1, self.nao, self.nao)
+        return np.array(self.scf_hess.make_h1(self.C, self.mo_occ)).reshape(-1, self.nao, self.nao)
 
     def _get_S_1_ao(self):
         int1e_ipovlp = self.mol.intor("int1e_ipovlp")

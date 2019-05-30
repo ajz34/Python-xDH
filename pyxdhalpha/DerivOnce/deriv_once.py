@@ -81,11 +81,11 @@ class DerivOnce(ABC):
             self.grids = self.scf_eng.grids
             self.xc_type = dft.libxc.xc_type(self.xc)
             self.cx = dft.numint.NumInt().hybrid_coeff(self.xc)
-            self.scf_grad = grad.RKS(self.scf_eng)
-            self.scf_hess = grad.RKS(self.scf_eng)
+            self.scf_grad = grad.rks.Gradients(self.scf_eng)
+            self.scf_hess = hessian.rks.Hessian(self.scf_eng)
         else:
             self.scf_grad = grad.RHF(self.scf_eng)
-            self.scf_hess = grad.RHF(self.scf_eng)
+            self.scf_hess = hessian.RHF(self.scf_eng)
         return
 
     def initialization_scf(self):

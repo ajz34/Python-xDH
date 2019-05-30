@@ -1,5 +1,5 @@
 %chk=H2O2-MP2-freq
-#p RMP2/6-31G nosymm SCF(VeryTight) Freq
+#p RMP2(Full)/6-31G nosymm SCF(VeryTight) Freq
 
 H2O2 MP2 Frequency
 
