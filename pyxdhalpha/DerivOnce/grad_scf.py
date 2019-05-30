@@ -4,7 +4,7 @@ import os
 
 from pyscf import grad
 
-from pyxdhalpha.DerivOnce.deriv_once import DerivOnce
+from pyxdhalpha.DerivOnce.deriv_once import DerivOnce, DerivOnceNCDFT
 from pyxdhalpha.Utilities import GridIterator, KernelHelper
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
@@ -52,24 +52,22 @@ class GradSCF(DerivOnce):
         return eri1_ao.reshape(-1, self.nao, self.nao, self.nao, self.nao)
     
     def _get_E_1(self):
+        cx, xc = self.cx, self.xc
+        so, sv = self.so, self.sv
+        mol, natm = self.mol, self.natm
         D = self.D
         H_1_ao = self.H_1_ao
         eri1_ao = self.eri1_ao
-        S_1_ao = self.S_1_ao
-        Co = self.Co
-        eo = self.eo
-        mol = self.mol
-        natm = self.natm
+        S_1_mo = self.S_1_mo
+        F_0_mo = self.F_0_mo
         grids = self.grids
         grdit_memory = self.grdit_memory
-        cx = self.cx
-        xc = self.xc
 
         grad_total = (
             + np.einsum("Auv, uv -> A", H_1_ao, D)
             + 0.5 * np.einsum("Auvkl, uv, kl -> A", eri1_ao, D, D)
             - 0.25 * cx * np.einsum("Aukvl, uv, kl -> A", eri1_ao, D, D)
-            - 2 * np.einsum("Auv, ui, i, vi -> A", S_1_ao, Co, eo, Co)
+            - 2 * np.einsum("Aij, ij -> A", S_1_mo[:, so, so], F_0_mo[so, so])
             + grad.rhf.grad_nuc(mol).reshape(-1)
         )
 
@@ -84,6 +82,15 @@ class GradSCF(DerivOnce):
                 ).reshape(-1)
 
         return grad_total.reshape(natm, 3)
+
+
+class GradNCDFT(DerivOnceNCDFT, GradSCF):
+
+    def Ax1_Core(self, si, sj, sk, sl):
+        raise NotImplementedError("This is still under construction...")
+
+    def _get_E_1(self):
+        raise NotImplementedError("This is still under construction...")
 
 
 class Test_GradSCF:

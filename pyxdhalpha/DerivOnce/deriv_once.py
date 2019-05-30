@@ -92,7 +92,6 @@ class DerivOnce(ABC):
         self.mo_occ = self.scf_eng.mo_occ
         self.C = self.scf_eng.mo_coeff
         self.e = self.scf_eng.mo_energy
-        self.D = self.scf_eng.make_rdm1()
         return
 
     # endregion
@@ -184,14 +183,9 @@ class DerivOnce(ABC):
 
     @property
     def D(self):
-        return self._D
-
-    @D.setter
-    def D(self, D):
         if self._D is NotImplemented:
-            self._D = D
-        else:
-            raise AttributeError("Once AO basis density is set, it should not be changed anymore.")
+            self._D = self._get_D()
+        return self._D
 
     @property
     def H_0_ao(self):
@@ -407,6 +401,9 @@ class DerivOnce(ABC):
 
     # region Getting Functions
 
+    def _get_D(self):
+        return 2 * self.Co @ self.Co.T
+
     def _get_H_0_ao(self):
         return self.scf_eng.get_hcore()
 
@@ -528,3 +525,30 @@ class DerivOnce(ABC):
         pass
 
     # endregion
+
+
+class DerivOnceNCDFT(DerivOnce, ABC):
+
+    def __init__(self, scf_eng, C, mo_occ, rotation=True, grdit_memory=2000):
+        super(DerivOnceNCDFT, self).__init__(scf_eng, rotation, grdit_memory)
+        self.C = C
+        self.mo_occ = mo_occ
+
+    def initialization_pyscf(self):
+        if isinstance(self.scf_eng, dft.rks.RKS):
+            self.xc = self.scf_eng.xc
+            self.grids = self.scf_eng.grids
+            self.xc_type = dft.libxc.xc_type(self.xc)
+            self.cx = dft.numint.NumInt().hybrid_coeff(self.xc)
+            self.scf_grad = grad.rks.Gradients(self.scf_eng)
+            self.scf_hess = hessian.rks.Hessian(self.scf_eng)
+        else:
+            self.scf_grad = grad.RHF(self.scf_eng)
+            self.scf_hess = hessian.RHF(self.scf_eng)
+
+    def initialization_scf(self):
+        pass
+
+    @property
+    def e(self):
+        raise AttributeError("Non-consistent method should not aquire orbital energy.")

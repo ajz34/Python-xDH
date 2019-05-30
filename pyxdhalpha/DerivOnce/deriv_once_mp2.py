@@ -1,12 +1,12 @@
 import numpy as np
-from abc import ABC
+from abc import ABC, abstractmethod
 from functools import partial
 import os
 import warnings
 
 from pyscf.scf import cphf
 
-from pyxdhalpha.DerivOnce import DerivOnce
+from pyxdhalpha.DerivOnce import DerivOnce, DerivOnceNCDFT
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -15,8 +15,10 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 
 class DerivOnceMP2(DerivOnce, ABC):
 
-    def __init__(self, scf_eng, rotation=True, grdit_memory=2000):
+    def __init__(self, scf_eng, rotation=True, grdit_memory=2000, cc=1.0):
         super(DerivOnceMP2, self).__init__(scf_eng, rotation, grdit_memory)
+        self.cc = cc
+
         self._t_iajb = NotImplemented
         self._T_iajb = NotImplemented
         self._L = NotImplemented
@@ -73,7 +75,7 @@ class DerivOnceMP2(DerivOnce, ABC):
         return self.eri0_mo[so, sv, so, sv] / self.D_iajb
 
     def _get_T_iajb(self):
-        return 2 * self.t_iajb - self.t_iajb.swapaxes(-1, -3)
+        return self.cc * (2 * self.t_iajb - self.t_iajb.swapaxes(-1, -3))
 
     def _get_L(self):
         nvir, nocc, nmo = self.nvir, self.nocc, self.nmo
@@ -134,3 +136,21 @@ class DerivOnceMP2(DerivOnce, ABC):
         )
 
     # endregion
+
+
+class DerivOnceXDH(DerivOnceMP2, ABC):
+
+    def __init__(self, scf_eng, nc_eng, rotation=True, grdit_memory=2000, cc=1.):
+        super(DerivOnceXDH, self).__init__(scf_eng, rotation, grdit_memory, cc)
+        self.nc_deriv = self.DerivOnceNCGGAClass(nc_eng, self.C, self.mo_occ,
+                                                 rotation, grdit_memory)  # type: DerivOnceNCDFT
+
+    @property
+    @abstractmethod
+    def DerivOnceNCGGAClass(self):
+        pass
+
+    def _get_L(self):
+        L = super(DerivOnceXDH, self)._get_L()
+        L += self.nc_deriv.F_0_mo[self.sv, self.so]
+        return L
