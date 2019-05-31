@@ -44,8 +44,17 @@ class DipoleNCDFT(DerivOnceNCDFT, DipoleSCF):
     def Ax1_Core(self, si, sj, sk, sl):
         raise NotImplementedError
 
+    @property
+    def DerivOnceMethod(self):
+        return DipoleSCF
+
     def _get_E_1(self):
-        raise NotImplementedError
+        so, sv, sa = self.so, self.sv, self.sa
+        B_1 = self.B_1
+        Z = self.Z
+        E_1 = 4 * np.einsum("ai, Aai -> A", Z, B_1[:, sv, so])
+        E_1 += self.nc_deriv.E_1
+        return E_1
 
 
 class Test_DipoleSCF:
@@ -57,17 +66,17 @@ class Test_DipoleSCF:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2()
-        dsh = DipoleSCF(H2O2.hf_eng)
+        helper = DipoleSCF(H2O2.hf_eng)
 
         assert(np.allclose(
-            dsh.E_1, dsh.scf_eng.dip_moment(unit="A.U."),
+            helper.E_1, helper.scf_eng.dip_moment(unit="A.U."),
             atol=1e-6, rtol=1e-4
         ))
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-HF-freq.fchk"))
 
         assert(np.allclose(
-            dsh.E_1, formchk.dipole(),
+            helper.E_1, formchk.dipole(),
             atol=1e-6, rtol=1e-4
         ))
 
@@ -78,16 +87,34 @@ class Test_DipoleSCF:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2()
-        dsh = DipoleSCF(H2O2.gga_eng)
+        helper = DipoleSCF(H2O2.gga_eng)
 
         assert(np.allclose(
-            dsh.E_1, dsh.scf_eng.dip_moment(unit="A.U."),
+            helper.E_1, helper.scf_eng.dip_moment(unit="A.U."),
             atol=1e-6, rtol=1e-4
         ))
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-B3LYP-freq.fchk"))
 
         assert(np.allclose(
-            dsh.E_1, formchk.dipole(),
+            helper.E_1, formchk.dipole(),
+            atol=1e-6, rtol=1e-4
+        ))
+
+    def test_HF_B3LYP_dipole(self):
+
+        import pickle
+        from pkg_resources import resource_filename
+        from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+
+        H2O2 = Mol_H2O2()
+        helper = DipoleNCDFT(H2O2.hf_eng, H2O2.gga_eng)
+        with open(
+                resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_derivonce_hf_b3lyp.dat"), "rb"
+        ) as f:
+            ref_grad = pickle.load(f)["dipole"]
+
+        assert (np.allclose(
+            helper.E_1, ref_grad,
             atol=1e-6, rtol=1e-4
         ))

@@ -94,11 +94,8 @@ class GradNCDFT(DerivOnceNCDFT, GradSCF):
     def _get_E_1(self):
         natm = self.natm
         so, sv, sa = self.so, self.sv, self.sa
-        Ax0_Core = self.Ax0_Core
-        e, mo_occ = self.e, self.mo_occ
-        F_0_mo = self.nc_deriv.F_0_mo
         B_1 = self.B_1
-        Z = cphf.solve(Ax0_Core(sv, so, sv, so), e, mo_occ, F_0_mo[sv, so], max_cycle=100, tol=1e-15)[0]
+        Z = self.Z
         E_1 = 4 * np.einsum("ai, Aai -> A", Z, B_1[:, sv, so]).reshape((natm, 3))
         E_1 += self.nc_deriv.E_1
         return E_1
@@ -113,18 +110,18 @@ class Test_GradSCF:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2()
-        gsh = GradSCF(H2O2.hf_eng)
-        hf_grad = gsh.scf_grad
+        helper = GradSCF(H2O2.hf_eng)
+        hf_grad = helper.scf_grad
 
         assert(np.allclose(
-            gsh.E_1, hf_grad.grad(),
+            helper.E_1, hf_grad.grad(),
             atol=1e-6, rtol=1e-4
         ))
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-HF-freq.fchk"))
 
         assert(np.allclose(
-            gsh.E_1, formchk.grad(),
+            helper.E_1, formchk.grad(),
             atol=1e-6, rtol=1e-4
         ))
 
@@ -135,11 +132,11 @@ class Test_GradSCF:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2()
-        gsh = GradSCF(H2O2.gga_eng)
-        gga_grad = gsh.scf_grad
+        helper = GradSCF(H2O2.gga_eng)
+        gga_grad = helper.scf_grad
 
         assert(np.allclose(
-            gsh.E_1, gga_grad.grad(),
+            helper.E_1, gga_grad.grad(),
             atol=1e-6, rtol=1e-4
         ))
 
@@ -147,7 +144,7 @@ class Test_GradSCF:
 
         # TODO: This is a weaker compare! Try to modulize that someday.
         assert(np.allclose(
-            gsh.E_1, formchk.grad(),
+            helper.E_1, formchk.grad(),
             atol=1e-5, rtol=1e-4
         ))
 

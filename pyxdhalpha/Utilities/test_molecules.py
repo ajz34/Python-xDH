@@ -39,7 +39,6 @@ class Mol_H2O2:
         if self._hf_grad is not NotImplemented:
             return self._hf_grad
         hf_grad = grad.RHF(self.hf_eng)
-        hf_grad.kernel()
         self._hf_grad = hf_grad
         return self._hf_grad
 
@@ -59,7 +58,6 @@ class Mol_H2O2:
         gga_eng.conv_tol_grad = 1e-9
         gga_eng.max_cycle = 100
         gga_eng.xc = self.xc
-        gga_eng.kernel()
 
         self._gga_eng = gga_eng
         return self._gga_eng
@@ -69,7 +67,6 @@ class Mol_H2O2:
         if self._gga_grad is not NotImplemented:
             return self._gga_grad
         gga_grad = grad.RKS(self.gga_eng)
-        gga_grad.kernel()
         self._gga_grad = gga_grad
         return self._gga_grad
 

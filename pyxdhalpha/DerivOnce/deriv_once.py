@@ -6,7 +6,7 @@ import warnings
 
 from pyscf import gto, scf, dft, grad, hessian, lib
 import pyscf.dft.numint
-import pyscf.scf.cphf
+from pyscf.scf import cphf
 
 from pyxdhalpha.Utilities import timing, GridIterator, KernelHelper
 
@@ -490,7 +490,7 @@ class DerivOnce(ABC):
         so = self.so
 
         # Generate v-o block of U
-        U_1_ai = scf.cphf.solve(
+        U_1_ai = cphf.solve(
             self.Ax0_Core(sv, so, sv, so),
             self.e,
             self.scf_eng.mo_occ,
@@ -546,8 +546,26 @@ class DerivOnceNCDFT(DerivOnce, ABC):
         self.nc_deriv = self.DerivOnceMethod(nc_eng, rotation=rotation, grdit_memory=grdit_memory, init_scf=False)
         self.nc_deriv.C = self.C
         self.nc_deriv.mo_occ = self.mo_occ
+        self._Z = NotImplemented
 
     @property
     @abstractmethod
     def DerivOnceMethod(self):
         pass
+
+    @property
+    def Z(self):
+        if self._Z is NotImplemented:
+            self._Z = self._get_Z()
+        return self._Z
+
+    def _get_Z(self):
+        so, sv, sa = self.so, self.sv, self.sa
+        Ax0_Core = self.Ax0_Core
+        e, mo_occ = self.e, self.mo_occ
+        F_0_mo = self.nc_deriv.F_0_mo
+        Z = cphf.solve(Ax0_Core(sv, so, sv, so), e, mo_occ, F_0_mo[sv, so], max_cycle=100, tol=1e-15)[0]
+        return Z
+
+    def _get_eng(self):
+        return self.nc_deriv.scf_eng.energy_tot(dm=self.D)

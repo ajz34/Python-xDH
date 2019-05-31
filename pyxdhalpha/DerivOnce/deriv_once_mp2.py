@@ -6,7 +6,7 @@ import warnings
 
 from pyscf.scf import cphf
 
-from pyxdhalpha.DerivOnce import DerivOnce
+from pyxdhalpha.DerivOnce import DerivOnce, DerivOnceNCDFT
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -16,7 +16,7 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 class DerivOnceMP2(DerivOnce, ABC):
 
     def __init__(self, scf_eng, rotation=True, grdit_memory=2000, cc=1.0):
-        super(DerivOnceMP2, self).__init__(scf_eng, rotation, grdit_memory)
+        super(DerivOnceMP2, self).__init__(scf_eng, rotation=rotation, grdit_memory=grdit_memory)
         self.cc = cc
 
         self._t_iajb = NotImplemented
@@ -142,17 +142,13 @@ class DerivOnceMP2(DerivOnce, ABC):
     # endregion
 
 
-class DerivOnceXDH(DerivOnceMP2, ABC):
+class DerivOnceXDH(DerivOnceMP2, DerivOnceNCDFT, ABC):
 
     def __init__(self, scf_eng, nc_eng, rotation=True, grdit_memory=2000, cc=1.):
-        super(DerivOnceXDH, self).__init__(scf_eng, rotation, grdit_memory, cc)
-        self.nc_deriv = self.DerivOnceNCGGAClass(nc_eng, self.C, self.e,
-                                                 rotation, grdit_memory)  # type: DerivOnceUninitializedSCF
-
-    @property
-    @abstractmethod
-    def DerivOnceNCGGAClass(self):
-        pass
+        super(DerivOnceXDH, self).__init__(scf_eng, rotation=rotation, grdit_memory=grdit_memory, cc=cc)
+        self.nc_deriv = self.DerivOnceMethod(nc_eng, rotation=rotation, grdit_memory=grdit_memory, init_scf=False)
+        self.nc_deriv.C = self.C
+        self.nc_deriv.mo_occ = self.mo_occ
 
     def _get_L(self):
         L = super(DerivOnceXDH, self)._get_L()
