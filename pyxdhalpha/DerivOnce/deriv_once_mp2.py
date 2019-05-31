@@ -146,7 +146,7 @@ class DerivOnceXDH(DerivOnceMP2, ABC):
 
     def __init__(self, scf_eng, nc_eng, rotation=True, grdit_memory=2000, cc=1.):
         super(DerivOnceXDH, self).__init__(scf_eng, rotation, grdit_memory, cc)
-        self.nc_deriv = self.DerivOnceNCGGAClass(nc_eng, self.C, self.mo_occ,
+        self.nc_deriv = self.DerivOnceNCGGAClass(nc_eng, self.C, self.e,
                                                  rotation, grdit_memory)  # type: DerivOnceNCDFT
 
     @property

@@ -3,6 +3,7 @@ from functools import partial
 import os
 
 from pyscf import grad
+from pyscf.scf import cphf
 
 from pyxdhalpha.DerivOnce.deriv_once import DerivOnce, DerivOnceNCDFT
 from pyxdhalpha.Utilities import GridIterator, KernelHelper
@@ -87,7 +88,16 @@ class GradNCDFT(DerivOnceNCDFT, GradSCF):
         raise NotImplementedError("This is still under construction...")
 
     def _get_E_1(self):
-        raise NotImplementedError("This is still under construction...")
+        natm = self.natm
+        so, sv, sa = self.so, self.sv, self.sa
+        Ax0_Core = self.Ax0_Core
+        e, mo_occ = self.e, self.mo_occ
+        F_0_mo = self.F_0_mo
+        B_1 = self.B_1
+        Z = cphf.solve(Ax0_Core(sv, so, sv, so), e, mo_occ, F_0_mo[sv, so], max_cycle=100, tol=1e-15)[0]
+        E_1 = 4 * np.einsum("ai, Aai -> A", Z, B_1[:, sv, so]).reshape((natm, 3))
+        E_1 += super(GradNCDFT, self)._get_E_1()
+        return E_1
 
 
 class Test_GradSCF:
@@ -136,3 +146,21 @@ class Test_GradSCF:
             gsh.E_1, formchk.grad(),
             atol=1e-5, rtol=1e-4
         ))
+
+    def test_HF_B3LYP_grad(self):
+
+        import pickle
+        from pkg_resources import resource_filename
+        from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+
+        H2O2 = Mol_H2O2()
+        H2O2.hf_eng.kernel()
+        helper = GradNCDFT(H2O2.gga_eng, H2O2.hf_eng.mo_coeff, H2O2.hf_eng.mo_energy)
+        with open(resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_derivonce_hf_b3lyp.dat"), "rb") as f:
+            ref_grad = pickle.load(f)["grad"].reshape(-1, 3)
+
+        assert (np.allclose(
+            helper.E_1, ref_grad,
+            atol=1e-6, rtol=1e-4
+        ))
+

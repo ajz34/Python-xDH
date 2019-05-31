@@ -539,10 +539,13 @@ class DerivOnce(ABC):
 
 class DerivOnceNCDFT(DerivOnce, ABC):
 
-    def __init__(self, scf_eng, C, mo_occ, rotation=True, grdit_memory=2000):
+    def __init__(self, scf_eng, C, e, mo_occ=NotImplemented, rotation=True, grdit_memory=2000):
         super(DerivOnceNCDFT, self).__init__(scf_eng, rotation, grdit_memory)
         self.C = C
         self.mo_occ = mo_occ
+        self.e = e
+        if self.mo_occ is NotImplemented:
+            self.mo_occ = scf_eng.mo_occ
 
     def initialization_pyscf(self):
         if isinstance(self.scf_eng, dft.rks.RKS):
@@ -558,10 +561,6 @@ class DerivOnceNCDFT(DerivOnce, ABC):
 
     def initialization_scf(self):
         pass
-
-    @property
-    def e(self):
-        raise AttributeError("Non-consistent method should not aquire orbital energy.")
 
     def _get_eng(self):
         return self.scf_eng.energy_tot(dm=self.D)
