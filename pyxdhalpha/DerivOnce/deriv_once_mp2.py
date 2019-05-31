@@ -6,7 +6,7 @@ import warnings
 
 from pyscf.scf import cphf
 
-from pyxdhalpha.DerivOnce import DerivOnce, DerivOnceNCDFT
+from pyxdhalpha.DerivOnce import DerivOnce
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -147,7 +147,7 @@ class DerivOnceXDH(DerivOnceMP2, ABC):
     def __init__(self, scf_eng, nc_eng, rotation=True, grdit_memory=2000, cc=1.):
         super(DerivOnceXDH, self).__init__(scf_eng, rotation, grdit_memory, cc)
         self.nc_deriv = self.DerivOnceNCGGAClass(nc_eng, self.C, self.e,
-                                                 rotation, grdit_memory)  # type: DerivOnceNCDFT
+                                                 rotation, grdit_memory)  # type: DerivOnceUninitializedSCF
 
     @property
     @abstractmethod

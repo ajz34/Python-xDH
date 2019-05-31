@@ -17,10 +17,11 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 
 class DerivOnce(ABC):
 
-    def __init__(self, scf_eng, rotation=True, grdit_memory=2000):
+    def __init__(self, scf_eng, rotation=True, grdit_memory=2000, init_scf=True):
         # From Basic Engine
         self.scf_eng = scf_eng  # type: scf.RKS or scf.RHF
         self.mol = scf_eng.mol  # type: gto.Mole
+        self.init_scf = init_scf
         self.scf_grad = NotImplemented  # type: grad.RHF
         self.scf_hess = NotImplemented  # type: hessian.RHF
         self.rotation = rotation
@@ -73,10 +74,10 @@ class DerivOnce(ABC):
         self.initialization_scf()
 
     def initialization_pyscf(self):
-        if self.scf_eng.mo_coeff is NotImplemented:
+        if self.scf_eng.mo_coeff is NotImplemented and self.init_scf:
             self.scf_eng.kernel()
-        if not self.scf_eng.converged:
-            warnings.warn("SCF not converged!")
+            if not self.scf_eng.converged:
+                warnings.warn("SCF not converged!")
         if isinstance(self.scf_eng, dft.rks.RKS):
             self.xc = self.scf_eng.xc
             self.grids = self.scf_eng.grids
@@ -90,9 +91,10 @@ class DerivOnce(ABC):
         return
 
     def initialization_scf(self):
-        self.mo_occ = self.scf_eng.mo_occ
-        self.C = self.scf_eng.mo_coeff
-        self.e = self.scf_eng.mo_energy
+        if self.init_scf:
+            self.mo_occ = self.scf_eng.mo_occ
+            self.C = self.scf_eng.mo_coeff
+            self.e = self.scf_eng.mo_energy
         return
 
     # endregion
@@ -539,28 +541,13 @@ class DerivOnce(ABC):
 
 class DerivOnceNCDFT(DerivOnce, ABC):
 
-    def __init__(self, scf_eng, C, e, mo_occ=NotImplemented, rotation=True, grdit_memory=2000):
-        super(DerivOnceNCDFT, self).__init__(scf_eng, rotation, grdit_memory)
-        self.C = C
-        self.mo_occ = mo_occ
-        self.e = e
-        if self.mo_occ is NotImplemented:
-            self.mo_occ = scf_eng.mo_occ
+    def __init__(self, scf_eng, nc_eng, rotation=True, grdit_memory=2000):
+        super(DerivOnceNCDFT, self).__init__(scf_eng, rotation=rotation, grdit_memory=grdit_memory)
+        self.nc_deriv = self.DerivOnceMethod(nc_eng, rotation=rotation, grdit_memory=grdit_memory, init_scf=False)
+        self.nc_deriv.C = self.C
+        self.nc_deriv.mo_occ = self.mo_occ
 
-    def initialization_pyscf(self):
-        if isinstance(self.scf_eng, dft.rks.RKS):
-            self.xc = self.scf_eng.xc
-            self.grids = self.scf_eng.grids
-            self.xc_type = dft.libxc.xc_type(self.xc)
-            self.cx = dft.numint.NumInt().hybrid_coeff(self.xc)
-            self.scf_grad = grad.rks.Gradients(self.scf_eng)
-            self.scf_hess = hessian.rks.Hessian(self.scf_eng)
-        else:
-            self.scf_grad = grad.RHF(self.scf_eng)
-            self.scf_hess = hessian.RHF(self.scf_eng)
-
-    def initialization_scf(self):
+    @property
+    @abstractmethod
+    def DerivOnceMethod(self):
         pass
-
-    def _get_eng(self):
-        return self.scf_eng.energy_tot(dm=self.D)
