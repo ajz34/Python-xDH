@@ -2,8 +2,6 @@ import numpy as np
 from functools import partial
 import os
 
-from pyscf import grad
-
 from pyxdhalpha.DerivOnce.deriv_once import DerivOnce, DerivOnceNCDFT
 from pyxdhalpha.Utilities import GridIterator, KernelHelper
 

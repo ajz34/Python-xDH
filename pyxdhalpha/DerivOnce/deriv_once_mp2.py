@@ -70,6 +70,11 @@ class DerivOnceMP2(DerivOnce, ABC):
 
     # region Setter
 
+    def _get_eng(self):
+        eng = (self.T_iajb * self.t_iajb * self.D_iajb).sum()
+        eng += super(DerivOnceMP2, self)._get_eng()
+        return eng
+
     def _get_t_iajb(self):
         so, sv = self.so, self.sv
         return self.eri0_mo[so, sv, so, sv] / self.D_iajb
@@ -153,3 +158,8 @@ class DerivOnceXDH(DerivOnceMP2, ABC):
         L = super(DerivOnceXDH, self)._get_L()
         L += 4 * self.nc_deriv.F_0_mo[self.sv, self.so]
         return L
+
+    def _get_eng(self):
+        eng = (self.T_iajb * self.t_iajb * self.D_iajb).sum()
+        eng += self.nc_deriv.eng
+        return eng

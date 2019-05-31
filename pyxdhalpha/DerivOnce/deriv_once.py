@@ -41,6 +41,7 @@ class DerivOnce(ABC):
         self._F_0_mo = NotImplemented
         self._H_0_ao = NotImplemented
         self._H_0_mo = NotImplemented
+        self._eng = NotImplemented
         # From gradient and hessian calculation
         self._H_1_ao = NotImplemented
         self._H_1_mo = NotImplemented
@@ -186,6 +187,12 @@ class DerivOnce(ABC):
         if self._D is NotImplemented:
             self._D = self._get_D()
         return self._D
+
+    @property
+    def eng(self):
+        if self._eng is NotImplemented:
+            self._eng = self._get_eng()
+        return self._eng
 
     @property
     def H_0_ao(self):
@@ -404,6 +411,9 @@ class DerivOnce(ABC):
     def _get_D(self):
         return 2 * self.Co @ self.Co.T
 
+    def _get_eng(self):
+        return self.scf_eng.e_tot
+
     def _get_H_0_ao(self):
         return self.scf_eng.get_hcore()
 
@@ -552,3 +562,6 @@ class DerivOnceNCDFT(DerivOnce, ABC):
     @property
     def e(self):
         raise AttributeError("Non-consistent method should not aquire orbital energy.")
+
+    def _get_eng(self):
+        return self.scf_eng.energy_tot(dm=self.D)

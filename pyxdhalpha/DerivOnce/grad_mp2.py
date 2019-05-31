@@ -89,7 +89,7 @@ class Test_GradMP2:
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-B2PLYP-freq.fchk"))
 
         assert(np.allclose(
-            gmh.scf_eng.e_tot + (gmh.T_iajb * gmh.t_iajb * gmh.D_iajb).sum(),
+            gmh.eng,
             formchk.total_energy()
         ))
         assert(np.allclose(
@@ -110,8 +110,7 @@ class Test_GradMP2:
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-XYG3-force.fchk"))
 
         assert(np.allclose(
-            + gmh.nc_deriv.scf_eng.energy_tot(dm=gmh.D)
-            + (gmh.T_iajb * gmh.t_iajb * gmh.D_iajb).sum(),
+            + gmh.eng,
             formchk.total_energy()
         ))
         assert(np.allclose(
