@@ -109,7 +109,6 @@ class DerivOnceMP2(DerivOnce, ABC):
             + D_r[sv, so] * (self.ev[:, None] - self.eo[None, :])
             + Ax0_Core(sv, so, sv, so)(D_r[sv, so]) + L
         )
-        print("Converge conv: ", abs(conv).max())
         if abs(conv).max() > 1e-8:
             msg = "\nget_E_1: CP-HF not converged well!\nMaximum deviation: " + str(abs(conv).max())
             warnings.warn(msg)
