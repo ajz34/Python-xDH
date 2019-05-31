@@ -14,17 +14,14 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 
 class GradSCF(DerivOnce):
 
-    def __init__(self, scf_eng, rotation=True, grdit_memory=2000):
-        super(GradSCF, self).__init__(scf_eng, rotation, grdit_memory)
-
     def Ax1_Core(self, si, sj, sk, sl):
         raise NotImplementedError("This is still under construction...")
 
     def _get_H_1_ao(self):
-        return np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)]).reshape(-1, self.nao, self.nao)
+        return np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)]).reshape((-1, self.nao, self.nao))
 
     def _get_F_1_ao(self):
-        return np.array(self.scf_hess.make_h1(self.C, self.mo_occ)).reshape(-1, self.nao, self.nao)
+        return np.array(self.scf_hess.make_h1(self.C, self.mo_occ)).reshape((-1, self.nao, self.nao))
 
     def _get_S_1_ao(self):
         int1e_ipovlp = self.mol.intor("int1e_ipovlp")
@@ -35,7 +32,7 @@ class GradSCF(DerivOnce):
             ao_matrix[:, sA] = -int1e_ipovlp[:, sA]
             return ao_matrix + ao_matrix.swapaxes(1, 2)
 
-        S_1_ao = np.array([get_S_S_ao(A) for A in range(self.natm)]).reshape(-1, self.nao, self.nao)
+        S_1_ao = np.array([get_S_S_ao(A) for A in range(self.natm)]).reshape((-1, self.nao, self.nao))
         return S_1_ao
 
     def _get_eri1_ao(self):
@@ -49,7 +46,7 @@ class GradSCF(DerivOnce):
             eri1_ao[A, :, :, sA, :, :] -= int2e_ip1[:, sA].transpose(0, 2, 1, 3, 4)
             eri1_ao[A, :, :, :, sA, :] -= int2e_ip1[:, sA].transpose(0, 3, 4, 1, 2)
             eri1_ao[A, :, :, :, :, sA] -= int2e_ip1[:, sA].transpose(0, 3, 4, 2, 1)
-        return eri1_ao.reshape(-1, self.nao, self.nao, self.nao, self.nao)
+        return eri1_ao.reshape((-1, self.nao, self.nao, self.nao, self.nao))
     
     def _get_E_1(self):
         cx, xc = self.cx, self.xc
