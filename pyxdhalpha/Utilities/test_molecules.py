@@ -37,6 +37,8 @@ class Mol_H2O2:
     def hf_grad(self):
         if self._hf_grad is not NotImplemented:
             return self._hf_grad
+        if self.hf_eng.mo_coeff is None:
+            self.hf_eng.kernel()
         hf_grad = grad.RHF(self.hf_eng)
         self._hf_grad = hf_grad
         return self._hf_grad
@@ -65,6 +67,8 @@ class Mol_H2O2:
     def gga_grad(self):
         if self._gga_grad is not NotImplemented:
             return self._gga_grad
+        if self.gga_eng.mo_coeff is None:
+            self.gga_eng.kernel()
         gga_grad = grad.RKS(self.gga_eng)
         self._gga_grad = gga_grad
         return self._gga_grad

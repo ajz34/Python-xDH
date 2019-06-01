@@ -156,6 +156,7 @@ class Test_DerivNumerical:
         H2O2 = Mol_H2O2()
         mol = H2O2.mol
         hf_eng = H2O2.hf_eng
+        hf_eng.kernel()
 
         def mf_func(t, interval):
             mf = scf.RHF(mol)
