@@ -1,5 +1,5 @@
 import numpy as np
-from abc import ABC, abstractmethod
+from abc import ABC
 from functools import partial
 import os
 import warnings
@@ -13,11 +13,14 @@ np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
+# Cubic Inheritance: C1
 class DerivOnceMP2(DerivOnceSCF, ABC):
 
-    def __init__(self, scf_eng, rotation=True, grdit_memory=2000, cc=1.0):
-        super(DerivOnceMP2, self).__init__(scf_eng, rotation=rotation, grdit_memory=grdit_memory)
-        self.cc = cc
+    def __init__(self, config):
+        super(DerivOnceMP2, self).__init__(config)
+        self.cc = 1.0
+        if "cc" in config:
+            self.cc = config["cc"]
 
         self._t_iajb = NotImplemented
         self._T_iajb = NotImplemented

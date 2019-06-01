@@ -9,6 +9,7 @@ np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
+# Cubic Inheritance: C2
 class GradMP2(DerivOnceMP2, GradSCF):
 
     def Ax1_Core(self, si, sj, sk, sl):
@@ -58,7 +59,10 @@ class Test_GradMP2:
         from pyscf import mp, grad
 
         H2O2 = Mol_H2O2()
-        gmh = GradMP2(H2O2.hf_eng)
+        config = {
+            "scf_eng": H2O2.hf_eng
+        }
+        gmh = GradMP2(config)
 
         mp2_eng = mp.MP2(gmh.scf_eng)
         mp2_eng.kernel()
