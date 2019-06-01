@@ -28,14 +28,10 @@ class GradMP2(DerivOnceMP2, GradSCF):
 
 
 # Cubic Inheritance: D2
-class GradXDH(DerivOnceXDH, GradMP2):
+class GradXDH(DerivOnceXDH, GradMP2, GradNCDFT):
 
     def Ax1_Core(self, si, sj, sk, sl):
         raise NotImplementedError("This is still under construction...")
-
-    @property
-    def DerivOnceMethod(self):
-        return GradSCF
 
     def _get_E_1(self):
         so, sv = self.so, self.sv

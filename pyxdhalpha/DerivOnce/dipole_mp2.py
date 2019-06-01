@@ -20,18 +20,14 @@ class DipoleMP2(DerivOnceMP2, DipoleSCF):
         return E_1
 
 
-class DipoleXDH(DerivOnceXDH, DipoleSCF):
+class DipoleXDH(DerivOnceXDH, DipoleMP2, DipoleNCDFT):
 
     def Ax1_Core(self, si, sj, sk, sl):
         raise NotImplementedError("This is still under construction...")
 
-    @property
-    def DerivOnceNCGGAClass(self):
-        return DipoleNCDFT
-
     def _get_E_1(self):
         E_1 = np.einsum("pq, Apq -> A", self.D_r, self.B_1)
-        E_1 += super(self.DerivOnceNCGGAClass, self.nc_deriv)._get_E_1()
+        E_1 += self.nc_deriv.E_1
         return E_1
 
 
@@ -63,12 +59,16 @@ class Test_DipoleMP2:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2(xc="0.53*HF + 0.47*B88, 0.73*LYP")
-        dmh = DipoleMP2(H2O2.gga_eng, cc=0.27)
+        config = {
+            "scf_eng": H2O2.gga_eng,
+            "cc": 0.27
+        }
+        helper = DipoleMP2(config)
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-B2PLYP-freq.fchk"))
 
         assert(np.allclose(
-            dmh.E_1, formchk.dipole(),
+            helper.E_1, formchk.dipole(),
             atol=1e-6, rtol=1e-4
         ))
 
@@ -80,7 +80,14 @@ class Test_DipoleMP2:
 
         H2O2_sc = Mol_H2O2(xc="B3LYPg")
         H2O2_nc = Mol_H2O2(xc="0.8033*HF - 0.0140*LDA + 0.2107*B88, 0.6789*LYP")
-        dmh = DipoleXDH(H2O2_sc.gga_eng, H2O2_nc.gga_eng, cc=0.3211)
+
+        config = {
+            "scf_eng": H2O2_sc.gga_eng,
+            "nc_eng": H2O2_nc.gga_eng,
+            "cc": 0.3211
+        }
+
+        dmh = DipoleXDH(config)
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-XYG3-force.fchk"))
 
