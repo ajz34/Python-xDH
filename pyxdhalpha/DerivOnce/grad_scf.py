@@ -13,6 +13,7 @@ np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
+# Cubic Inhertance: A2
 class GradSCF(DerivOnce):
 
     def Ax1_Core(self, si, sj, sk, sl):
@@ -110,7 +111,10 @@ class Test_GradSCF:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2()
-        helper = GradSCF(H2O2.hf_eng)
+        config = {
+            "scf_eng": H2O2.hf_eng
+        }
+        helper = GradSCF(config)
         hf_grad = helper.scf_grad
 
         assert(np.allclose(

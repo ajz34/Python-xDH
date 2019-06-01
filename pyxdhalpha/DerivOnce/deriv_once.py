@@ -4,7 +4,7 @@ from functools import partial
 import os
 import warnings
 
-from pyscf import gto, scf, dft, grad, hessian, lib
+from pyscf import gto, dft, grad, hessian, lib
 import pyscf.dft.numint
 from pyscf.scf import cphf
 
@@ -15,24 +15,37 @@ np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
+# Cubic Inhertance: A1
 class DerivOnce(ABC):
 
-    def __init__(self, scf_eng, rotation=True, grdit_memory=2000, init_scf=True):
-        # From Basic Engine
-        self.scf_eng = scf_eng  # type: scf.RKS or scf.RHF
-        self.mol = scf_eng.mol  # type: gto.Mole
-        self.init_scf = init_scf
-        self.scf_grad = NotImplemented  # type: grad.RHF
-        self.scf_hess = NotImplemented  # type: hessian.RHF
-        self.rotation = rotation
+    def __init__(self, config):
+
+        # From configuration file, with default values
+        self.config = config  # type: dict
+        self.scf_eng = config["scf_eng"]  # type: dft.rks.RKS
+        self.rotation = True
+        self.grdit_memory = 2000
+        self.init_scf = True
+        if "rotation" in config:
+            self.rotation = config["rotation"]
+        if "grdit_memory" in config:
+            self.grdit_memory = config["grdit_memory"]
+        if "init_scf" in config:
+            self.init_scf = config["init_scf"]
+
+        # Basic settings
+        self.mol = self.scf_eng.mol  # type: gto.Mole
+        self.scf_grad = NotImplemented
+        self.scf_hess = NotImplemented
         if not self.rotation:
             warnings.warn("No orbital rotation can lead to fatal numerical discrepancy!")
+
         # Backdoor to DFT
         self.cx = 1
         self.xc = "HF"
         self.grids = NotImplemented  # type: dft.gen_grid.Grids
-        self.grdit_memory = grdit_memory
         self.xc_type = "HF"
+
         # From SCF Calculation
         self._C = NotImplemented
         self._mo_occ = NotImplemented
@@ -43,6 +56,7 @@ class DerivOnce(ABC):
         self._H_0_ao = NotImplemented
         self._H_0_mo = NotImplemented
         self._eng = NotImplemented
+
         # From gradient and hessian calculation
         self._H_1_ao = NotImplemented
         self._H_1_mo = NotImplemented
@@ -54,6 +68,7 @@ class DerivOnce(ABC):
         self._U_1 = NotImplemented
         self._U_1_vo = NotImplemented
         self._U_1_ov = NotImplemented
+
         # ERI
         self._eri0_ao = NotImplemented
         self._eri0_mo = NotImplemented
@@ -61,10 +76,13 @@ class DerivOnce(ABC):
         self._eri1_mo = NotImplemented
         self._eri2_ao = NotImplemented
         self._eri2_mo = NotImplemented
+
         # E1
         self._E_1 = NotImplemented
+
         # Initializer
         self.initialization()
+
         return
 
     # region Initializers
