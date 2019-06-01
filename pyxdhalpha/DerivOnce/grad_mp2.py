@@ -27,6 +27,7 @@ class GradMP2(DerivOnceMP2, GradSCF):
         return E_1
 
 
+# Cubic Inheritance: D2
 class GradXDH(DerivOnceXDH, GradMP2):
 
     def Ax1_Core(self, si, sj, sk, sl):
@@ -88,7 +89,11 @@ class Test_GradMP2:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2(xc="0.53*HF + 0.47*B88, 0.73*LYP")
-        gmh = GradMP2(H2O2.gga_eng, cc=0.27)
+        config = {
+            "scf_eng": H2O2.gga_eng,
+            "cc": 0.27
+        }
+        gmh = GradMP2(config)
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-B2PLYP-freq.fchk"))
 
@@ -109,12 +114,17 @@ class Test_GradMP2:
 
         H2O2_sc = Mol_H2O2(xc="B3LYPg")
         H2O2_nc = Mol_H2O2(xc="0.8033*HF - 0.0140*LDA + 0.2107*B88, 0.6789*LYP")
-        gmh = GradXDH(H2O2_sc.gga_eng, H2O2_nc.gga_eng, cc=0.3211)
+        config = {
+            "scf_eng": H2O2_sc.gga_eng,
+            "nc_eng": H2O2_nc.gga_eng,
+            "cc": 0.3211
+        }
+        gmh = GradXDH(config)
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-XYG3-force.fchk"))
 
         assert(np.allclose(
-            + gmh.eng,
+            gmh.eng,
             formchk.total_energy()
         ))
         assert(np.allclose(

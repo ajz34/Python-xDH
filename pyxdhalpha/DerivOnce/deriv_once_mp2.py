@@ -145,13 +145,8 @@ class DerivOnceMP2(DerivOnceSCF, ABC):
     # endregion
 
 
+# Cubic Inheritance: D1
 class DerivOnceXDH(DerivOnceMP2, DerivOnceNCDFT, ABC):
-
-    def __init__(self, scf_eng, nc_eng, rotation=True, grdit_memory=2000, cc=1.):
-        super(DerivOnceXDH, self).__init__(scf_eng, rotation=rotation, grdit_memory=grdit_memory, cc=cc)
-        self.nc_deriv = self.DerivOnceMethod(nc_eng, rotation=rotation, grdit_memory=grdit_memory, init_scf=False)
-        self.nc_deriv.C = self.C
-        self.nc_deriv.mo_occ = self.mo_occ
 
     def _get_L(self):
         L = super(DerivOnceXDH, self)._get_L()
@@ -160,5 +155,5 @@ class DerivOnceXDH(DerivOnceMP2, DerivOnceNCDFT, ABC):
 
     def _get_eng(self):
         eng = (self.T_iajb * self.t_iajb * self.D_iajb).sum()
-        eng += self.nc_deriv.eng
+        eng += self.nc_deriv.scf_eng.energy_tot(dm=self.D)
         return eng
