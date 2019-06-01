@@ -30,7 +30,6 @@ class Mol_H2O2:
         if self._hf_eng is not NotImplemented:
             return self._hf_eng
         hf_eng = scf.RHF(self.mol)
-        hf_eng.kernel()
         self._hf_eng = hf_eng
         return self._hf_eng
     

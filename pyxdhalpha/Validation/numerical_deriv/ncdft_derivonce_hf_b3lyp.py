@@ -10,16 +10,29 @@ from pyxdhalpha.DerivOnce import GradNCDFT
 def mol_to_grad_helper(mol):
     H2O2 = Mol_H2O2(mol=mol)
     H2O2.hf_eng.kernel()
-    helper = GradNCDFT(H2O2.hf_eng, H2O2.gga_eng)
+    config = {
+        "scf_eng": H2O2.hf_eng,
+        "nc_eng": H2O2.gga_eng
+    }
+    helper = GradNCDFT(config)
     return helper
 
 
 def dipole_generator(component, interval):
     H2O2 = Mol_H2O2()
     mol = H2O2.mol
-    H2O2.hf_eng.get_hcore = lambda: scf.rhf.get_hcore(mol) - interval * mol.intor("int1e_r")[component]
-    H2O2.gga_eng.get_hcore = lambda: scf.rhf.get_hcore(mol) - interval * mol.intor("int1e_r")[component]
-    helper = GradNCDFT(H2O2.hf_eng, H2O2.gga_eng)
+
+    def get_hcore(mol=mol):
+        return scf.rhf.get_hcore(mol) - interval * mol.intor("int1e_r")[component]
+
+    H2O2.hf_eng.get_hcore = get_hcore
+    H2O2.gga_eng.get_hcore = get_hcore
+
+    config = {
+        "scf_eng": H2O2.hf_eng,
+        "nc_eng": H2O2.gga_eng
+    }
+    helper = GradNCDFT(config)
     return helper
 
 

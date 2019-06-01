@@ -3,7 +3,6 @@ from functools import partial
 import os
 
 from pyxdhalpha.DerivOnce.deriv_once import DerivOnceSCF, DerivOnceNCDFT
-from pyxdhalpha.Utilities import GridIterator, KernelHelper
 
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
@@ -66,7 +65,10 @@ class Test_DipoleSCF:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2()
-        helper = DipoleSCF(H2O2.hf_eng)
+        config = {
+            "scf_eng": H2O2.hf_eng
+        }
+        helper = DipoleSCF(config)
 
         assert(np.allclose(
             helper.E_1, helper.scf_eng.dip_moment(unit="A.U."),
@@ -87,7 +89,10 @@ class Test_DipoleSCF:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2()
-        helper = DipoleSCF(H2O2.gga_eng)
+        config = {
+            "scf_eng": H2O2.gga_eng
+        }
+        helper = DipoleSCF(config)
 
         assert(np.allclose(
             helper.E_1, helper.scf_eng.dip_moment(unit="A.U."),
@@ -108,13 +113,16 @@ class Test_DipoleSCF:
         from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
 
         H2O2 = Mol_H2O2()
-        helper = DipoleNCDFT(H2O2.hf_eng, H2O2.gga_eng)
-        with open(
-                resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_derivonce_hf_b3lyp.dat"), "rb"
-        ) as f:
-            ref_grad = pickle.load(f)["dipole"]
+        config = {
+            "scf_eng": H2O2.hf_eng,
+            "nc_eng": H2O2.gga_eng
+        }
+        helper = DipoleNCDFT(config)
+
+        with open(resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_derivonce_hf_b3lyp.dat"), "rb") as f:
+            ref_dipole = pickle.load(f)["dipole"]
 
         assert (np.allclose(
-            helper.E_1, ref_grad,
+            helper.E_1, ref_dipole,
             atol=1e-6, rtol=1e-4
         ))
