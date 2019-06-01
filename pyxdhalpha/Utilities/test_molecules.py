@@ -1,4 +1,4 @@
-from pyscf import scf, gto, grad, dft, hessian
+from pyscf import scf, gto, grad, dft
 
 
 class Mol_H2O2:
@@ -68,4 +68,3 @@ class Mol_H2O2:
         gga_grad = grad.RKS(self.gga_eng)
         self._gga_grad = gga_grad
         return self._gga_grad
-

@@ -44,12 +44,15 @@ class Test_DipoleMP2:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2()
-        dmh = DipoleMP2(H2O2.hf_eng)
+        config = {
+            "scf_eng": H2O2.hf_eng
+        }
+        helper = DipoleMP2(config)
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-MP2-freq.fchk"))
 
         assert(np.allclose(
-            dmh.E_1, formchk.dipole(),
+            helper.E_1, formchk.dipole(),
             atol=1e-6, rtol=1e-4
         ))
 
