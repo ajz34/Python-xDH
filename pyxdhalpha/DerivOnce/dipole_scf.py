@@ -2,7 +2,7 @@ import numpy as np
 from functools import partial
 import os
 
-from pyxdhalpha.DerivOnce.deriv_once import DerivOnce, DerivOnceNCDFT
+from pyxdhalpha.DerivOnce.deriv_once import DerivOnceSCF, DerivOnceNCDFT
 from pyxdhalpha.Utilities import GridIterator, KernelHelper
 
 
@@ -11,7 +11,7 @@ np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
-class DipoleSCF(DerivOnce):
+class DipoleSCF(DerivOnceSCF):
 
     def Ax1_Core(self, si, sj, sk, sl):
         raise NotImplementedError("This is still under construction...")

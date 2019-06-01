@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from functools import partial
 import os
 import warnings
+import copy
 
 from pyscf import gto, dft, grad, hessian, lib
 import pyscf.dft.numint
@@ -15,8 +16,8 @@ np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
-# Cubic Inhertance: A1
-class DerivOnce(ABC):
+# Cubic Inheritance: A1
+class DerivOnceSCF(ABC):
 
     def __init__(self, config):
 
@@ -92,7 +93,7 @@ class DerivOnce(ABC):
         self.initialization_scf()
 
     def initialization_pyscf(self):
-        if self.scf_eng.mo_coeff is NotImplemented and self.init_scf:
+        if (self.scf_eng.mo_coeff is NotImplemented or self.scf_eng.mo_coeff is None) and self.init_scf:
             self.scf_eng.kernel()
             if not self.scf_eng.converged:
                 warnings.warn("SCF not converged!")
@@ -557,11 +558,15 @@ class DerivOnce(ABC):
     # endregion
 
 
-class DerivOnceNCDFT(DerivOnce, ABC):
+# Cubic Inheritance: B1
+class DerivOnceNCDFT(DerivOnceSCF, ABC):
 
-    def __init__(self, scf_eng, nc_eng, rotation=True, grdit_memory=2000):
-        super(DerivOnceNCDFT, self).__init__(scf_eng, rotation=rotation, grdit_memory=grdit_memory)
-        self.nc_deriv = self.DerivOnceMethod(nc_eng, rotation=rotation, grdit_memory=grdit_memory, init_scf=False)
+    def __init__(self, config):
+        super(DerivOnceNCDFT, self).__init__(config)
+        config_nc = copy.copy(config)
+        config_nc["scf_eng"] = config_nc["nc_eng"]
+        config_nc["init_scf"] = False
+        self.nc_deriv = self.DerivOnceMethod(config_nc)
         self.nc_deriv.C = self.C
         self.nc_deriv.mo_occ = self.mo_occ
         self._Z = NotImplemented

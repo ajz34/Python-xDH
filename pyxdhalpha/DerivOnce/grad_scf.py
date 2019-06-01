@@ -5,7 +5,7 @@ import os
 from pyscf import grad
 from pyscf.scf import cphf
 
-from pyxdhalpha.DerivOnce.deriv_once import DerivOnce, DerivOnceNCDFT
+from pyxdhalpha.DerivOnce.deriv_once import DerivOnceSCF, DerivOnceNCDFT
 from pyxdhalpha.Utilities import GridIterator, KernelHelper
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
@@ -13,8 +13,8 @@ np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
-# Cubic Inhertance: A2
-class GradSCF(DerivOnce):
+# Cubic Inheritance: A2
+class GradSCF(DerivOnceSCF):
 
     def Ax1_Core(self, si, sj, sk, sl):
         raise NotImplementedError("This is still under construction...")
@@ -83,6 +83,7 @@ class GradSCF(DerivOnce):
         return grad_total.reshape(natm, 3)
 
 
+# Cubic Inheritance: B2
 class GradNCDFT(DerivOnceNCDFT, GradSCF):
 
     def Ax1_Core(self, si, sj, sk, sl):
@@ -136,7 +137,10 @@ class Test_GradSCF:
         from pyxdhalpha.Utilities import FormchkInterface
 
         H2O2 = Mol_H2O2()
-        helper = GradSCF(H2O2.gga_eng)
+        config = {
+            "scf_eng": H2O2.gga_eng
+        }
+        helper = GradSCF(config)
         gga_grad = helper.scf_grad
 
         assert(np.allclose(
@@ -159,7 +163,12 @@ class Test_GradSCF:
         from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
 
         H2O2 = Mol_H2O2()
-        helper = GradNCDFT(H2O2.hf_eng, H2O2.gga_eng)
+        config = {
+            "scf_eng": H2O2.hf_eng,
+            "nc_eng": H2O2.gga_eng
+        }
+        helper = GradNCDFT(config)
+
         with open(resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_derivonce_hf_b3lyp.dat"), "rb") as f:
             ref_grad = pickle.load(f)["grad"].reshape(-1, 3)
 

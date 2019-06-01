@@ -6,14 +6,14 @@ import warnings
 
 from pyscf.scf import cphf
 
-from pyxdhalpha.DerivOnce import DerivOnce, DerivOnceNCDFT
+from pyxdhalpha.DerivOnce import DerivOnceSCF, DerivOnceNCDFT
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
-class DerivOnceMP2(DerivOnce, ABC):
+class DerivOnceMP2(DerivOnceSCF, ABC):
 
     def __init__(self, scf_eng, rotation=True, grdit_memory=2000, cc=1.0):
         super(DerivOnceMP2, self).__init__(scf_eng, rotation=rotation, grdit_memory=grdit_memory)
