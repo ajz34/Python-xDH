@@ -75,8 +75,6 @@ class DerivOnceSCF(ABC):
         self._eri0_mo = NotImplemented
         self._eri1_ao = NotImplemented
         self._eri1_mo = NotImplemented
-        self._eri2_ao = NotImplemented
-        self._eri2_mo = NotImplemented
 
         # E1
         self._E_1 = NotImplemented
