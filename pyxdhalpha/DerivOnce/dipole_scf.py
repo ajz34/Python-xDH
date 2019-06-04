@@ -2,7 +2,7 @@ import numpy as np
 from functools import partial
 import os
 
-from pyxdhalpha.DerivOnce.deriv_once import DerivOnceSCF, DerivOnceNCDFT
+from pyxdhalpha.DerivOnce.deriv_once_scf import DerivOnceSCF, DerivOnceNCDFT
 
 
 MAXMEM = float(os.getenv("MAXMEM", 2))

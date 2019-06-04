@@ -5,7 +5,7 @@ import os
 from pyscf import grad
 from pyscf.scf import cphf
 
-from pyxdhalpha.DerivOnce.deriv_once import DerivOnceSCF, DerivOnceNCDFT
+from pyxdhalpha.DerivOnce.deriv_once_scf import DerivOnceSCF, DerivOnceNCDFT
 from pyxdhalpha.Utilities import GridIterator, KernelHelper
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
