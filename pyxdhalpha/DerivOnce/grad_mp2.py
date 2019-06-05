@@ -12,9 +12,6 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 # Cubic Inheritance: C2
 class GradMP2(DerivOnceMP2, GradSCF):
 
-    def Ax1_Core(self, si, sj, sk, sl):
-        raise NotImplementedError("This is still under construction...")
-
     def _get_E_1(self):
         so, sv = self.so, self.sv
         natm = self.natm
@@ -29,9 +26,6 @@ class GradMP2(DerivOnceMP2, GradSCF):
 
 # Cubic Inheritance: D2
 class GradXDH(DerivOnceXDH, GradMP2, GradNCDFT):
-
-    def Ax1_Core(self, si, sj, sk, sl):
-        raise NotImplementedError("This is still under construction...")
 
     def _get_E_1(self):
         so, sv = self.so, self.sv

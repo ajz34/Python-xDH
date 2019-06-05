@@ -1,1 +1,3 @@
 from pyxdhalpha.DerivTwice.deriv_twice_scf import DerivTwiceSCF
+from pyxdhalpha.DerivTwice.hess_scf import HessSCF
+from pyxdhalpha.DerivTwice.deriv_twice_mp2 import DerivTwiceMP2

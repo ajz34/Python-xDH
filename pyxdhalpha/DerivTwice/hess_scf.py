@@ -201,6 +201,9 @@ class HessSCF(DerivTwiceSCF):
 
     @timing
     def _get_F_2_ao_GGAcontrib(self):
+        if self.xc_type != "GGA":
+            return 0
+
         natm = self.natm
         nao = self.nao
 

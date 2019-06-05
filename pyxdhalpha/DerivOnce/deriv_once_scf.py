@@ -429,7 +429,7 @@ class DerivOnceSCF(ABC):
         return fx
 
     @abstractmethod
-    def Ax1_Core(self, si, sj, sk, sl):
+    def Ax1_Core(self, si, sj, sk, sl, reshape=True):
         pass
 
     # endregion
@@ -563,12 +563,19 @@ class DerivOnceSCF(ABC):
         pass
 
     def _get_pdA_F_0_mo(self):
-        F_0_mo = self.F_0_mo
+        F_1_mo = self.F_1_mo
         U_1 = self.U_1
+        e = self.e
+        Ax0_Core = self.Ax0_Core
+        so, sv, sa = self.so, self.sv, self.sa
+
         pdA_F_0_mo = (
-            + self.F_1_mo
-            + np.einsum("Apm, mq -> Apq", U_1, F_0_mo)
+            + F_1_mo
+            + np.einsum("Apq, p -> Apq", U_1, e)
+            + np.einsum("Aqp, q -> Apq", U_1, e)
+            + Ax0_Core(sa, sa, sa, so)(U_1[:, :, so])
         )
+        return pdA_F_0_mo
 
     # endregion
 
