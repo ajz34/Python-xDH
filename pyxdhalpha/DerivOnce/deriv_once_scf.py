@@ -592,6 +592,7 @@ class DerivOnceNCDFT(DerivOnceSCF, ABC):
         self.nc_deriv.C = self.C
         self.nc_deriv.mo_occ = self.mo_occ
         self._Z = NotImplemented
+        self._pdA_nc_F_0_mo = NotImplemented
 
     @property
     @abstractmethod
@@ -604,6 +605,12 @@ class DerivOnceNCDFT(DerivOnceSCF, ABC):
             self._Z = self._get_Z()
         return self._Z
 
+    @property
+    def pdA_nc_F_0_mo(self):
+        if self._pdA_nc_F_0_mo is NotImplemented:
+            self._pdA_nc_F_0_mo = self._get_pdA_nc_F_0_mo()
+        return self._pdA_nc_F_0_mo
+
     def _get_Z(self):
         so, sv, sa = self.so, self.sv, self.sa
         Ax0_Core = self.Ax0_Core
@@ -611,6 +618,21 @@ class DerivOnceNCDFT(DerivOnceSCF, ABC):
         F_0_mo = self.nc_deriv.F_0_mo
         Z = cphf.solve(Ax0_Core(sv, so, sv, so), e, mo_occ, F_0_mo[sv, so], max_cycle=100, tol=1e-15)[0]
         return Z
+
+    def _get_pdA_nc_F_0_mo(self):
+        nc_F_0_mo = self.nc_deriv.F_0_mo
+        nc_F_1_mo = self.nc_deriv.F_1_mo
+        U_1 = self.U_1
+        Ax0_Core = self.nc_deriv.Ax0_Core
+        so, sv, sa = self.so, self.sv, self.sa
+
+        pdA_nc_F_0_mo = (
+            + nc_F_1_mo
+            + np.einsum("Amp, mq -> Apq", U_1, nc_F_0_mo)
+            + np.einsum("Amq, pm -> Apq", U_1, nc_F_0_mo)
+            + Ax0_Core(sa, sa, sa, so)(U_1[:, :, so])
+        )
+        return pdA_nc_F_0_mo
 
     def _get_eng(self):
         return self.nc_deriv.scf_eng.energy_tot(dm=self.D)

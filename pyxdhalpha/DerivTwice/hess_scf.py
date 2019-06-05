@@ -7,7 +7,7 @@ from pyscf import gto, dft, grad, hessian, lib
 import pyscf.dft.numint
 from pyscf.scf import _vhf, cphf
 
-from pyxdhalpha.DerivTwice import DerivTwiceSCF
+from pyxdhalpha.DerivTwice import DerivTwiceSCF, DerivTwiceNCDFT
 from pyxdhalpha.Utilities import timing, GridIterator, KernelHelper
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
@@ -285,7 +285,7 @@ class HessSCF(DerivTwiceSCF):
         return F_2_ao_GGA.swapaxes(1, 2).reshape((dhess, dhess, nao, nao))
 
     @timing
-    def _get_E_2_Skeleton(self, grids=None, xc=None, cx=None):
+    def _get_E_2_Skeleton(self, grids=None, xc=None, cx=None, xc_type=None):
 
         mol = self.mol
         mol_slice = self.mol_slice
@@ -299,12 +299,14 @@ class HessSCF(DerivTwiceSCF):
             xc = self.xc
         if cx is None:
             cx = self.cx
+        if xc_type is None:
+            xc_type = self.xc_type
 
         # GGA Contribution
         E_SS_GGA_contrib1 = np.zeros((natm, natm, 3, 3))
         E_SS_GGA_contrib2 = np.zeros((natm, natm, 3, 3))
         E_SS_GGA_contrib3 = np.zeros((natm, natm, 3, 3))
-        if self.xc_type == "GGA":
+        if xc_type == "GGA":
             grdit = GridIterator(mol, grids, D, deriv=3, memory=self.grdit_memory)
             for grdh in grdit:
                 kerh = KernelHelper(grdh, xc)
@@ -375,6 +377,20 @@ class HessSCF(DerivTwiceSCF):
         return self.E_2_Skeleton + self.E_2_U + self.A.scf_hess.hess_nuc().swapaxes(1, 2).reshape((dhess, dhess))
 
 
+class HessNCDFT(DerivTwiceNCDFT, HessSCF):
+
+    def _get_E_2_Skeleton(self, grids=None, xc=None, cx=None, xc_type=None):
+        if grids is None:
+            grids = self.A.nc_deriv.grids
+        if xc is None:
+            xc = self.A.nc_deriv.xc
+        if cx is None:
+            cx = self.A.nc_deriv.cx
+        if xc_type is None:
+            xc_type = self.A.nc_deriv.xc_type
+        return HessSCF._get_E_2_Skeleton(self, grids, xc, cx, xc_type)
+
+
 class Test_GradSCF:
 
     def test_HF_hess(self):
@@ -433,4 +449,24 @@ class Test_GradSCF:
 
 
 if __name__ == '__main__':
-    pass
+
+    from pkg_resources import resource_filename
+    from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+    from pyxdhalpha.Utilities import FormchkInterface
+    from pyxdhalpha.DerivOnce import GradNCDFT
+
+    H2O2 = Mol_H2O2()
+    config = {
+        "scf_eng": H2O2.hf_eng,
+        "nc_eng": H2O2.gga_eng,
+        "rotation": False,
+    }
+    scf_helper = GradNCDFT(config)
+
+    config = {
+        "deriv_A": scf_helper,
+        "deriv_B": scf_helper,
+    }
+    helper = HessNCDFT(config)
+
+

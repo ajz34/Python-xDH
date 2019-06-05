@@ -36,31 +36,14 @@ class DerivTwiceMP2(DerivTwiceSCF, ABC):
         self.W_I = self.A.W_I
         self.D_iajb = self.A.D_iajb
 
-        # Intermediate variables
-        self._pdA_F_B_mo = NotImplemented
-
     # region Properties
-
-    @property
-    def pdA_F_B_mo(self):
-        if self._pdA_F_B_mo is NotImplemented:
-            self._pdA_F_B_mo = self._get_pdA_F_B_mo()
-        return self._pdA_F_B_mo
 
     # endregion
 
     # region Functions
 
-    def _get_pdA_F_B_mo(self):
-        A, B = self.A, self.B
-        so, sv, sa = self.so, self.sv, self.sa
-        pdA_F_B_mo = (
-            + self.F_2_mo
-            + np.einsum("Apm, Bmq -> ABpq", A.F_1_mo, B.U_1)
-            + np.einsum("Amq, Bmp -> ABpq", A.F_1_mo, B.U_1)
-            + A.Ax1_Core(sa, sa, sa, so)(B.U_1[:, :, so])
-        )
-        return pdA_F_B_mo
+    def _get_E_2_MP2_Contrib1(self):
+        return np.einsum("pq, ABpq -> AB", self.D_r, self.pdB_F_A_mo)
 
     # endregion
 
