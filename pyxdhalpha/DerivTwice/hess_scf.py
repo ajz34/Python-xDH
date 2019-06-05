@@ -401,6 +401,33 @@ class Test_GradSCF:
             atol=1e-6, rtol=1e-4
         ))
 
+    def test_B3LYP_hess(self):
+
+        from pkg_resources import resource_filename
+        from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+        from pyxdhalpha.Utilities import FormchkInterface
+        from pyxdhalpha.DerivOnce import GradSCF
+
+        H2O2 = Mol_H2O2()
+        config = {
+            "scf_eng": H2O2.gga_eng
+        }
+        helper = GradSCF(config)
+        config = {
+            "deriv_A": helper,
+            "deriv_B": helper,
+        }
+
+        hessian_helper = HessSCF(config)
+        E_2 = hessian_helper.E_2
+
+        formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-B3LYP-freq.fchk"))
+
+        assert(np.allclose(
+            E_2, formchk.hessian(),
+            atol=1e-5, rtol=1e-4
+        ))
+
 
 if __name__ == '__main__':
     pass
