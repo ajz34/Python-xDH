@@ -16,7 +16,7 @@ np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
 np.set_printoptions(8, linewidth=1000, suppress=True)
 
 
-# Cubic Inheritance: C1
+# Cubic Inheritance: A1
 class DerivTwiceSCF(ABC):
 
     def __init__(self, config):
@@ -25,7 +25,6 @@ class DerivTwiceSCF(ABC):
         self.config = config  # type: dict
         self.A = config["deriv_A"]  # type: DerivOnceSCF
         self.B = config["deriv_B"]  # type: DerivOnceSCF
-        self.deriv_same = config["deriv_same"]  # type: bool
         self.grdit_memory = 2000
         if "grdit_memory" in config:
             self.grdit_memory = config["grdit_memory"]
@@ -63,10 +62,8 @@ class DerivTwiceSCF(ABC):
         self._B_2 = NotImplemented
 
         # E_2
-        self._E_2_SS = NotImplemented
-        self._E_2_SU = NotImplemented
-        self._E_2_US = NotImplemented
-        self._E_2_UU = NotImplemented
+        self._E_2_Skeleton = NotImplemented
+        self._E_2_U = NotImplemented
         self._E_2 = NotImplemented
 
     # region Properties
@@ -166,13 +163,13 @@ class DerivTwiceSCF(ABC):
     @property
     def F_2_ao_Jcontrib(self):
         if self._F_2_ao_Jcontrib is NotImplemented:
-            self._F_2_ao_Jcontrib = self._get_F_2_ao_Jcontrib()
+            self._F_2_ao_Jcontrib, self._F_2_ao_Kcontrib = self._get_F_2_ao_JKcontrib()
         return self._F_2_ao_Jcontrib
 
     @property
     def F_2_ao_Kcontrib(self):
         if self._F_2_ao_Kcontrib is NotImplemented:
-            self._F_2_ao_Kcontrib = self._get_F_2_ao_Kcontrib()
+            self._F_2_ao_Jcontrib, self._F_2_ao_Kcontrib = self._get_F_2_ao_JKcontrib()
         return self._F_2_ao_Kcontrib
 
     @property
@@ -205,9 +202,31 @@ class DerivTwiceSCF(ABC):
             self._B_2 = self._get_B_2()
         return self._B_2
 
+    @property
+    def E_2_Skeleton(self):
+        if self._E_2_Skeleton is NotImplemented:
+            self._E_2_Skeleton = self._get_E_2_Skeleton()
+        return self._E_2_Skeleton
+
+    @property
+    def E_2_U(self):
+        if self._E_2_U is NotImplemented:
+            self._E_2_U = self._get_E_2_U()
+        return self._E_2_U
+
+    @property
+    def E_2(self):
+        if self._E_2 is NotImplemented:
+            self._E_2 = self._get_E_2()
+        return self._E_2
+
     # endregion
 
     # region Getters
+
+    def mol_slice(self, atm_id):
+        _, _, p0, p1 = self.mol.aoslice_by_atom()[atm_id]
+        return slice(p0, p1)
 
     @abstractmethod
     def _get_H_2_ao(self):
@@ -224,11 +243,7 @@ class DerivTwiceSCF(ABC):
         return self.C.T @ self.S_2_ao @ self.C
 
     @abstractmethod
-    def _get_F_2_ao_Jcontrib(self):
-        pass
-
-    @abstractmethod
-    def _get_F_2_ao_Kcontrib(self):
+    def _get_F_2_ao_JKcontrib(self):
         pass
 
     @abstractmethod
@@ -286,10 +301,22 @@ class DerivTwiceSCF(ABC):
             # line 6
             + np.einsum("Api, Bpa -> ABai", A.U_1, Ax0_Core(sa, sa, sa, so)(B.U_1[:, :, :, so]))
             + np.einsum("Bpi, Apa -> ABai", B.U_1, Ax0_Core(sa, sa, sa, so)(A.U_1[:, :, :, so]))
-            # line 7
+            # line 7 TODO: Possible problem in first two dimension
             + A.Ax1_Core(sa, sa, sa, so)(B.U_1[:, :, :, so])
             + B.Ax1_Core(sa, sa, sa, so)(A.U_1[:, :, :, so]).swapaxes(0, 1)
         )
         return B_2
+
+    @abstractmethod
+    def _get_E_2_Skeleton(self):
+        pass
+
+    @abstractmethod
+    def _get_E_2_U(self):
+        pass
+
+    @abstractmethod
+    def _get_E_2(self):
+        pass
 
     # endregion

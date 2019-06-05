@@ -56,3 +56,21 @@ class FormchkInterface:
         if file_path is None:
             file_path = self.file_path
         return self.key_to_value("Dipole Moment", file_path)
+
+    @staticmethod
+    def tril_to_symm(tril: np.ndarray):
+        dim = int(np.floor(np.sqrt(tril.size * 2)))
+        if dim * (dim + 1) / 2 != tril.size:
+            raise ValueError("Size " + str(tril.size) + " is probably not a valid lower-triangle matrix.")
+        indices_tuple = np.tril_indices(dim)
+        iterator = zip(*indices_tuple)
+        symm = np.empty((dim, dim))
+        for it, (row, col) in enumerate(iterator):
+            symm[row, col] = tril[it]
+            symm[col, row] = tril[it]
+        return symm
+
+    def hessian(self, file_path=None):
+        if file_path is None:
+            file_path = self.file_path
+        return self.tril_to_symm(self.key_to_value("Cartesian Force Constants", file_path))

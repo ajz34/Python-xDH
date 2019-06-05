@@ -70,6 +70,9 @@ class DerivOnceSCF(ABC):
         self._U_1_vo = NotImplemented
         self._U_1_ov = NotImplemented
 
+        # Tensor total derivative
+        self._pdA_F_0_mo = NotImplemented
+
         # ERI
         self._eri0_ao = NotImplemented
         self._eri0_mo = NotImplemented
@@ -327,6 +330,12 @@ class DerivOnceSCF(ABC):
             self._E_1 = self._get_E_1()
         return self._E_1
 
+    @property
+    def pdA_F_0_mo(self):
+        if self._pdA_F_0_mo is NotImplemented:
+            self._pdA_F_0_mo = self._get_pdA_F_0_mo()
+        return self._pdA_F_0_mo
+
     # endregion
 
     # region Utility functions
@@ -489,7 +498,7 @@ class DerivOnceSCF(ABC):
         sa = self.sa
         so = self.so
 
-        B_1 = self.F_1_mo
+        B_1 = self.F_1_mo.copy()
         if self.S_1_mo is not 0:
             B_1 += (
                 - self.S_1_mo * self.e
@@ -552,6 +561,14 @@ class DerivOnceSCF(ABC):
     @abstractmethod
     def _get_E_1(self):
         pass
+
+    def _get_pdA_F_0_mo(self):
+        F_0_mo = self.F_0_mo
+        U_1 = self.U_1
+        pdA_F_0_mo = (
+            + self.F_1_mo
+            + np.einsum("Apm, mq -> Apq", U_1, F_0_mo)
+        )
 
     # endregion
 
