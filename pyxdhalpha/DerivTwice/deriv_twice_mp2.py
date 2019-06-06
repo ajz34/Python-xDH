@@ -174,4 +174,5 @@ if __name__ == '__main__':
     }
     helper = DerivTwiceMP2(config)
     print(helper.E_2)
-
+    so, sv, sa = helper.so, helper.sv, helper.sa
+    A, B = helper.A, helper.B

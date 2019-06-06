@@ -174,7 +174,7 @@ class GradSCF(DerivOnceSCF):
                         contrib3 += np.einsum("Atrg, rgu, gv -> Atuv", pdU_tmp_M_1, grdh.ao_1, grdh.ao_0)
                         contrib3 += contrib3.swapaxes(-1, -2)
 
-                        ax_ao[:, :, B] = contrib1 + contrib2 + contrib3
+                        ax_ao[:, :, B] += contrib1 + contrib2 + contrib3
 
             ax_ao.shape = (natm * 3, dm.shape[0], nao, nao)
 

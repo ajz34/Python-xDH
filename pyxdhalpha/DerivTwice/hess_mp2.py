@@ -48,10 +48,11 @@ if __name__ == '__main__':
     }
     scf_helper = GradMP2(config)
     print(scf_helper.E_1)
-    # config = {
-    #     "deriv_A": scf_helper,
-    #     "deriv_B": scf_helper,
-    # }
-    # helper = HessMP2(config)
-    # print(helper.E_2)
+
+    config = {
+        "deriv_A": scf_helper,
+        "deriv_B": scf_helper,
+    }
+    helper = HessMP2(config)
+    print(helper.E_2)
 

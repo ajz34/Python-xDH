@@ -484,6 +484,36 @@ class Test_GradSCF:
             atol=1e-5, rtol=1e-4
         ))
 
+    def test_HF_B3LYP_hess(self):
+
+        from pkg_resources import resource_filename
+        from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+        from pyxdhalpha.DerivOnce import GradNCDFT
+        import pickle
+
+        H2O2 = Mol_H2O2()
+        config = {
+            "scf_eng": H2O2.hf_eng,
+            "nc_eng": H2O2.gga_eng,
+            "rotation": True,
+        }
+        grad_helper = GradNCDFT(config)
+
+        config = {
+            "deriv_A": grad_helper,
+            "deriv_B": grad_helper,
+        }
+        helper = HessNCDFT(config)
+        E_2 = helper.E_2
+
+        with open(resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_hessian_hf_b3lyp.dat"), "rb") as f:
+            ref_hess = pickle.load(f)["hess"]
+
+        assert (np.allclose(
+            E_2, ref_hess,
+            atol=1e-6, rtol=1e-4
+        ))
+
 
 if __name__ == '__main__':
 
