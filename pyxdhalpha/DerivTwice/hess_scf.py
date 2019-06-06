@@ -391,21 +391,6 @@ class HessSCF(DerivTwiceSCF):
         E_SS = E_SS_GGA_contrib + E_SS_HF_contrib
         return E_SS
 
-    def _get_E_2_U(self):
-        A, B = self.A, self.B
-        Xi_2 = self.Xi_2
-        so, sa = self.so, self.sa
-        e, eo = self.e, self.eo
-        Ax0_Core = self.A.Ax0_Core
-
-        E_2_U = - 2 * np.einsum("ABi, i -> AB", Xi_2.diagonal(0, -1, -2)[:, :, so], eo)
-        E_2_U += 4 * np.einsum("Bpi, Api -> AB", B.U_1[:, :, so], A.F_1_mo[:, :, so])
-        E_2_U += 4 * np.einsum("Api, Bpi -> AB", A.U_1[:, :, so], B.F_1_mo[:, :, so])
-        E_2_U += 4 * np.einsum("Api, Bpi, p -> AB", A.U_1[:, :, so], B.U_1[:, :, so], e)
-        E_2_U += 4 * np.einsum("Api, Bpi -> AB", A.U_1[:, :, so], Ax0_Core(sa, so, sa, so)(B.U_1[:, :, so]))
-
-        return E_2_U
-
     def _get_E_2(self):
         dhess = self.natm * 3
         return self.E_2_Skeleton + self.E_2_U + self.A.scf_hess.hess_nuc().swapaxes(1, 2).reshape((dhess, dhess))
