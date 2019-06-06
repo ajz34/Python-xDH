@@ -27,7 +27,7 @@ if __name__ == '__main__':
     H2O2 = Mol_H2O2()
     config = {
         "scf_eng": H2O2.hf_eng,
-        "rotation": False,
+        "rotation": True,
     }
     scf_helper = GradMP2(config)
     config = {
@@ -37,4 +37,21 @@ if __name__ == '__main__':
 
     helper = HessMP2(config)
 
-    print(helper.pdB_S_A_mo)
+    print(helper.E_2)
+
+    # B2PLYP
+
+    H2O2 = Mol_H2O2(xc="0.53*HF + 0.47*B88, 0.73*LYP")
+    config = {
+        "scf_eng": H2O2.gga_eng,
+        "cc": 0.27
+    }
+    scf_helper = GradMP2(config)
+    print(scf_helper.E_1)
+    # config = {
+    #     "deriv_A": scf_helper,
+    #     "deriv_B": scf_helper,
+    # }
+    # helper = HessMP2(config)
+    # print(helper.E_2)
+

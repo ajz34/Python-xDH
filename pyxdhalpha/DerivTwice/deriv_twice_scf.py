@@ -60,6 +60,8 @@ class DerivTwiceSCF(ABC):
         self._F_2_mo = NotImplemented
         self._Xi_2 = NotImplemented
         self._B_2 = NotImplemented
+        self._eri2_ao = NotImplemented
+        self._eri2_mo = NotImplemented
 
         # E_2
         self._E_2_Skeleton = NotImplemented
@@ -208,6 +210,18 @@ class DerivTwiceSCF(ABC):
         return self._B_2
 
     @property
+    def eri2_ao(self):
+        if self._eri2_ao is NotImplemented:
+            self._eri2_ao = self._get_eri2_ao()
+        return self._eri2_ao
+
+    @property
+    def eri2_mo(self):
+        if self._eri2_mo is NotImplemented:
+            self._eri2_mo = self._get_eri2_mo()
+        return self._eri2_mo
+
+    @property
     def E_2_Skeleton(self):
         if self._E_2_Skeleton is NotImplemented:
             self._E_2_Skeleton = self._get_E_2_Skeleton()
@@ -324,11 +338,18 @@ class DerivTwiceSCF(ABC):
             # line 6
             + np.einsum("Api, Bpa -> ABai", A.U_1, Ax0_Core(sa, sa, sa, so)(B.U_1[:, :, :, so]))
             + np.einsum("Bpi, Apa -> ABai", B.U_1, Ax0_Core(sa, sa, sa, so)(A.U_1[:, :, :, so]))
-            # line 7 TODO: Possible problem in first two dimension
+            # line 7
             + A.Ax1_Core(sa, sa, sa, so)(B.U_1[:, :, :, so])
             + B.Ax1_Core(sa, sa, sa, so)(A.U_1[:, :, :, so]).swapaxes(0, 1)
         )
         return B_2
+
+    @abstractmethod
+    def _get_eri2_ao(self):
+        pass
+
+    def _get_eri2_mo(self):
+        return np.einsum("ABuvkl, up, vq, kr, ls -> ABpqrs", self.eri2_ao, self.C, self.C, self.C, self.C)
 
     def _get_pdB_F_A_mo(self):
         A, B = self.A, self.B

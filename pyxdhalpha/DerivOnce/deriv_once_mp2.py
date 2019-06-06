@@ -29,6 +29,9 @@ class DerivOnceMP2(DerivOnceSCF, ABC):
         self._D_r_ai_flag = False  # Flag indicates that D_r's ai part has been generated
         self._W_I = NotImplemented
         self._D_iajb = NotImplemented
+        self._pdA_eri0_mo = NotImplemented
+        self._pdA_t_iajb = NotImplemented
+        self._pdA_T_iajb = NotImplemented
 
     # region Properties
 
@@ -68,6 +71,24 @@ class DerivOnceMP2(DerivOnceSCF, ABC):
         if self._D_iajb is NotImplemented:
             self._D_iajb = self._get_D_iajb()
         return self._D_iajb
+    
+    @property
+    def pdA_eri0_mo(self):
+        if self._pdA_eri0_mo is NotImplemented:
+            self._pdA_eri0_mo = self._get_pdA_eri0_mo()
+        return self._pdA_eri0_mo
+
+    @property
+    def pdA_t_iajb(self):
+        if self._pdA_t_iajb is NotImplemented:
+            self._pdA_t_iajb = self._get_pdA_t_iajb()
+        return self._pdA_t_iajb
+
+    @property
+    def pdA_T_iajb(self):
+        if self._pdA_T_iajb is NotImplemented:
+            self._pdA_T_iajb = self._get_pdA_T_iajb()
+        return self._pdA_T_iajb
 
     # endregion
 
@@ -141,6 +162,39 @@ class DerivOnceMP2(DerivOnceSCF, ABC):
             + self.eo[None, None, :, None]
             - self.ev[None, None, None, :]
         )
+    
+    def _get_pdA_eri0_mo(self):
+        eri0_mo = self.eri0_mo
+        U_1 = self.U_1
+        pdA_eri0_mo = (
+            + self.eri1_mo
+            + np.einsum("pjkl, Api -> Aijkl", eri0_mo, U_1)
+            + np.einsum("ipkl, Apj -> Aijkl", eri0_mo, U_1)
+            + np.einsum("ijpl, Apk -> Aijkl", eri0_mo, U_1)
+            + np.einsum("ijkp, Apl -> Aijkl", eri0_mo, U_1)
+        )
+        return pdA_eri0_mo
+
+    def _get_pdA_t_iajb(self):
+        so, sv = self.so, self.sv
+        D_iajb = self.D_iajb
+        pdA_F_0_mo = self.pdA_F_0_mo
+        t_iajb = self.t_iajb
+        pdA_eri0_mo = self.pdA_eri0_mo
+
+        pdA_t_iajb = (
+            + pdA_eri0_mo[:, so, sv, so, sv]
+            - np.einsum("Aki, kajb -> Aiajb", pdA_F_0_mo[:, so, so], t_iajb)
+            - np.einsum("Akj, iakb -> Aiajb", pdA_F_0_mo[:, so, so], t_iajb)
+            + np.einsum("Aca, icjb -> Aiajb", pdA_F_0_mo[:, sv, sv], t_iajb)
+            + np.einsum("Acb, iajc -> Aiajb", pdA_F_0_mo[:, sv, sv], t_iajb)
+        )
+        pdA_t_iajb /= D_iajb
+
+        return pdA_t_iajb
+
+    def _get_pdA_T_iajb(self):
+        return self.cc * (2 * self.pdA_t_iajb - self.pdA_t_iajb.swapaxes(-1, -3))
 
     # endregion
 

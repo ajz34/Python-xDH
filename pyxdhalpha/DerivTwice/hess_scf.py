@@ -285,6 +285,43 @@ class HessSCF(DerivTwiceSCF):
         return F_2_ao_GGA.swapaxes(1, 2).reshape((dhess, dhess, nao, nao))
 
     @timing
+    def _get_eri2_ao(self):
+        natm = self.natm
+        nao = self.nao
+        mol_slice = self.mol_slice
+
+        int2e_ipip1 = self.mol.intor("int2e_ipip1")
+        int2e_ipvip1 = self.mol.intor("int2e_ipvip1")
+        int2e_ip1ip2 = self.mol.intor("int2e_ip1ip2")
+
+        def get_eri2(A, B):
+            sA, sB = mol_slice(A), mol_slice(B)
+            eri2 = np.zeros((9, nao, nao, nao, nao))
+
+            if A == B:
+                eri2[:, sA, :, :, :] += int2e_ipip1[:, sA]
+                eri2[:, :, sA, :, :] += int2e_ipip1[:, sA].transpose(0, 2, 1, 3, 4)
+                eri2[:, :, :, sA, :] += int2e_ipip1[:, sA].transpose(0, 3, 4, 1, 2)
+                eri2[:, :, :, :, sA] += int2e_ipip1[:, sA].transpose(0, 3, 4, 2, 1)
+            eri2[:, sA, sB, :, :] += int2e_ipvip1[:, sA, sB]
+            eri2[:, sB, sA, :, :] += np.einsum("Tijkl -> Tjikl", int2e_ipvip1[:, sA, sB])
+            eri2[:, :, :, sA, sB] += np.einsum("Tijkl -> Tklij", int2e_ipvip1[:, sA, sB])
+            eri2[:, :, :, sB, sA] += np.einsum("Tijkl -> Tklji", int2e_ipvip1[:, sA, sB])
+            eri2[:, sA, :, sB, :] += int2e_ip1ip2[:, sA, :, sB]
+            eri2[:, sB, :, sA, :] += np.einsum("Tijkl -> Tklij", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, sA, :, :, sB] += np.einsum("Tijkl -> Tijlk", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, sB, :, :, sA] += np.einsum("Tijkl -> Tklji", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, :, sA, sB, :] += np.einsum("Tijkl -> Tjikl", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, :, sB, sA, :] += np.einsum("Tijkl -> Tlkij", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, :, sA, :, sB] += np.einsum("Tijkl -> Tjilk", int2e_ip1ip2[:, sA, :, sB])
+            eri2[:, :, sB, :, sA] += np.einsum("Tijkl -> Tlkji", int2e_ip1ip2[:, sA, :, sB])
+
+            return eri2.reshape((3, 3, nao, nao, nao, nao))
+
+        return np.array([[get_eri2(A, B) for B in range(natm)] for A in range(natm)])\
+            .swapaxes(1, 2).reshape((natm * 3, natm * 3, nao, nao, nao, nao))
+
+    @timing
     def _get_E_2_Skeleton(self, grids=None, xc=None, cx=None, xc_type=None):
 
         mol = self.mol
