@@ -69,7 +69,7 @@ class DerivTwiceSCF(ABC):
         # Intermediate variables
         self._pdB_F_A_mo = NotImplemented
         self._pdB_S_A_mo = NotImplemented
-        self._pdB_B_A_vo = NotImplemented
+        self._pdB_B_A = NotImplemented
 
     # region Properties
 
@@ -238,10 +238,10 @@ class DerivTwiceSCF(ABC):
         return self._pdB_S_A_mo
 
     @property
-    def pdB_B_A_vo(self):
-        if self._pdB_B_A_vo is NotImplemented:
-            self._pdB_B_A_vo = self._get_pdB_B_A_vo()
-        return self._pdB_B_A_vo
+    def pdB_B_A(self):
+        if self._pdB_B_A is NotImplemented:
+            self._pdB_B_A = self._get_pdB_B_A()
+        return self._pdB_B_A
 
     # endregion
 
@@ -350,21 +350,21 @@ class DerivTwiceSCF(ABC):
         )
         return pdB_S_A_mo
 
-    def _get_pdB_B_A_vo(self):
+    def _get_pdB_B_A(self):
         A, B = self.A, self.B
         so, sv, sa = self.so, self.sv, self.sa
         Ax0_Core = A.Ax0_Core
-        pdB_B_A_vo = (
-            + self.pdB_F_A_mo[:, :, sv, so]
-            - np.einsum("Aaj, Bji -> ABai", A.S_1_mo[:, sv, so], B.pdA_F_0_mo[:, so, so])
-            - np.einsum("ABai, i -> ABai", self.pdB_S_A_mo[:, :, sv, so], self.eo)
-            - 0.5 * B.Ax1_Core(sv, so, so, so)(A.S_1_mo[:, so, so]).swapaxes(0, 1)
-            - 0.5 * np.einsum("Bpa, Api -> ABai", B.U_1[:, :, sv], Ax0_Core(sa, so, so, so)(A.S_1_mo[:, so, so]))
-            - 0.5 * np.einsum("Bpi, Apa -> ABai", B.U_1[:, :, so], Ax0_Core(sa, sv, so, so)(A.S_1_mo[:, so, so]))
-            - Ax0_Core(sv, so, sa, so)(np.einsum("Bpk, Akl -> ABpl", B.U_1[:, :, so], A.S_1_mo[:, so, so]))
-            - 0.5 * Ax0_Core(sv, so, so, so)(self.pdB_S_A_mo[:, :, so, so])
+        pdB_B_A = (
+            + self.pdB_F_A_mo
+            - self.pdB_S_A_mo * self.e
+            - np.einsum("Apm, Bqm -> ABpq", A.S_1_mo, B.pdA_F_0_mo)
+            - 0.5 * B.Ax1_Core(sa, sa, so, so)(A.S_1_mo[:, so, so]).swapaxes(0, 1)
+            - 0.5 * Ax0_Core(sa, sa, so, so)(self.pdB_S_A_mo[:, :, so, so])
+            - Ax0_Core(sa, sa, sa, so)(np.einsum("Bml, Akl -> ABmk", B.U_1[:, :, so], A.S_1_mo[:, so, so]))
+            - 0.5 * np.einsum("Bmp, Amq -> ABpq", B.U_1, Ax0_Core(sa, sa, so, so)(A.S_1_mo[:, so, so]))
+            - 0.5 * np.einsum("Bmq, Amp -> ABpq", B.U_1, Ax0_Core(sa, sa, so, so)(A.S_1_mo[:, so, so]))
         )
-        return pdB_B_A_vo
+        return pdB_B_A
 
     @abstractmethod
     def _get_E_2_Skeleton(self):
@@ -414,8 +414,8 @@ class DerivTwiceNCDFT(DerivTwiceSCF, ABC):
         RHS_B += np.einsum("Api, pa -> Aai", U_1[:, :, so], B.Ax0_Core(sa, sv, sv, so)(Z))
         RHS_B += B.Ax0_Core(sv, so, sa, so)(np.einsum("Apa, ai -> Api", U_1[:, :, sv], Z))
         RHS_B += B.Ax0_Core(sv, so, sa, sv)(np.einsum("Api, ai -> Apa", U_1[:, :, so], Z))
-        RHS_B += np.einsum("bi, Aab -> Aai", Z, B.pdA_F_0_mo[:, sv, sv])
-        RHS_B -= np.einsum("ai, Aij -> Aai", Z, B.pdA_F_0_mo[:, so, so])
+        RHS_B += np.einsum("ci, Aca -> Aai", Z, B.pdA_F_0_mo[:, sv, sv])
+        RHS_B -= np.einsum("ak, Aki -> Aai", Z, B.pdA_F_0_mo[:, so, so])
         return RHS_B
 
     def _get_E_2_U(self):
@@ -423,7 +423,7 @@ class DerivTwiceNCDFT(DerivTwiceSCF, ABC):
         so, sv, sa = self.so, self.sv, self.sa
         E_2_U = 4 * np.einsum("Bpi, Api -> AB", B.U_1[:, :, so], A.nc_deriv.F_1_mo[:, :, so])
         E_2_U += 4 * np.einsum("Aai, Bai -> AB", A.U_1[:, sv, so], self.RHS_B)
-        E_2_U += 4 * np.einsum("ABai, ai -> AB", self.pdB_B_A_vo, self.Z)
+        E_2_U += 4 * np.einsum("ABai, ai -> AB", self.pdB_B_A[:, :, sv, so], self.Z)
         E_2_U -= 2 * np.einsum("Aki, Bki -> AB", A.S_1_mo[:, so, so], B.pdA_nc_F_0_mo[:, so, so])
         E_2_U -= 2 * np.einsum("ABki, ki -> AB", self.pdB_S_A_mo[:, :, so, so], A.nc_deriv.F_0_mo[so, so])
         return E_2_U

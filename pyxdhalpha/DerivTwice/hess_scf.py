@@ -459,7 +459,7 @@ if __name__ == '__main__':
     config = {
         "scf_eng": H2O2.hf_eng,
         "nc_eng": H2O2.gga_eng,
-        "rotation": False,
+        "rotation": True,
     }
     scf_helper = GradNCDFT(config)
 
