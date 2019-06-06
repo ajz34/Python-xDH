@@ -1,14 +1,6 @@
 import numpy as np
-from abc import ABC, abstractmethod
-from functools import partial
-import os
 
-from pyscf import gto, dft, grad, hessian, lib
-import pyscf.dft.numint
-from pyscf.scf import _vhf, cphf
-
-from pyxdhalpha.DerivTwice import DerivTwiceSCF, DerivTwiceMP2, HessSCF
-from pyxdhalpha.Utilities import timing, GridIterator, KernelHelper
+from pyxdhalpha.DerivTwice import DerivTwiceMP2, HessSCF
 
 
 # Cubic Inheritance: C2
@@ -17,42 +9,70 @@ class HessMP2(DerivTwiceMP2, HessSCF):
     pass
 
 
-if __name__ == '__main__':
+class Test_HessMP2:
 
-    from pkg_resources import resource_filename
-    from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
-    from pyxdhalpha.Utilities import FormchkInterface
-    from pyxdhalpha.DerivOnce import GradMP2
+    def test_MP2_hess(self):
 
-    H2O2 = Mol_H2O2()
-    config = {
-        "scf_eng": H2O2.hf_eng,
-        "rotation": True,
-    }
-    scf_helper = GradMP2(config)
-    config = {
-        "deriv_A": scf_helper,
-        "deriv_B": scf_helper,
-    }
+        from pkg_resources import resource_filename
+        from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+        from pyxdhalpha.Utilities import FormchkInterface
+        from pyxdhalpha.DerivOnce import GradMP2
 
-    helper = HessMP2(config)
+        H2O2 = Mol_H2O2()
+        config = {
+            "scf_eng": H2O2.hf_eng,
+            "rotation": True,
+        }
+        grad_helper = GradMP2(config)
+        config = {
+            "deriv_A": grad_helper,
+            "deriv_B": grad_helper,
+        }
 
-    print(helper.E_2)
+        helper = HessMP2(config)
+        E_2 = helper.E_2
 
-    # B2PLYP
+        formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-MP2-freq.fchk"))
 
-    H2O2 = Mol_H2O2(xc="0.53*HF + 0.47*B88, 0.73*LYP")
-    config = {
-        "scf_eng": H2O2.gga_eng,
-        "cc": 0.27
-    }
-    scf_helper = GradMP2(config)
-    print(scf_helper.E_1)
+        assert(np.allclose(
+            E_2, formchk.hessian(),
+            atol=1e-6, rtol=1e-4
+        ))
 
-    config = {
-        "deriv_A": scf_helper,
-        "deriv_B": scf_helper,
-    }
-    helper = HessMP2(config)
-    print(helper.E_2)
+    def test_B2PLYP_hess(self):
 
+        from pkg_resources import resource_filename
+        from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
+        from pyxdhalpha.Utilities import FormchkInterface
+        from pyxdhalpha.DerivOnce import GradMP2
+        import pickle
+
+        H2O2 = Mol_H2O2(xc="0.53*HF + 0.47*B88, 0.73*LYP")
+        config = {
+            "scf_eng": H2O2.gga_eng,
+            "cc": 0.27
+        }
+        grad_helper = GradMP2(config)
+
+        config = {
+            "deriv_A": grad_helper,
+            "deriv_B": grad_helper,
+        }
+
+        helper = HessMP2(config)
+        E_2 = helper.E_2
+
+        formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-B2PLYP-freq.fchk"))
+
+        assert(np.allclose(
+            E_2, formchk.hessian(),
+            atol=1e-5, rtol=1e-4
+        ))
+
+        with open(resource_filename("pyxdhalpha", "Validation/numerical_deriv/mp2_hessian_b2plyp.dat"), "rb") as f:
+            ref_hess = pickle.load(f)["hess"]
+
+        assert (np.allclose(
+            E_2, ref_hess,
+            atol=1e-6, rtol=1e-4
+        ))

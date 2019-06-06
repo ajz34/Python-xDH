@@ -153,26 +153,3 @@ class DerivTwiceMP2(DerivTwiceSCF, ABC):
         return super(DerivTwiceMP2, self)._get_E_2() + self._get_E_2_MP2_Contrib()
 
     # endregion
-
-
-if __name__ == '__main__':
-
-    from pkg_resources import resource_filename
-    from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
-    from pyxdhalpha.Utilities import FormchkInterface
-    from pyxdhalpha.DerivOnce import GradSCF
-
-    H2O2 = Mol_H2O2()
-    config = {
-        "scf_eng": H2O2.hf_eng
-    }
-    grad_helper = GradSCF(config)
-
-    config = {
-        "deriv_A": grad_helper,
-        "deriv_B": grad_helper
-    }
-    helper = DerivTwiceMP2(config)
-    print(helper.E_2)
-    so, sv, sa = helper.so, helper.sv, helper.sa
-    A, B = helper.A, helper.B

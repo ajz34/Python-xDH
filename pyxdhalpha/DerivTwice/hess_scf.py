@@ -1,11 +1,8 @@
 import numpy as np
-from abc import ABC, abstractmethod
 from functools import partial
 import os
 
-from pyscf import gto, dft, grad, hessian, lib
-import pyscf.dft.numint
-from pyscf.scf import _vhf, cphf
+from pyscf.scf import _vhf
 
 from pyxdhalpha.DerivTwice import DerivTwiceSCF, DerivTwiceNCDFT
 from pyxdhalpha.Utilities import timing, GridIterator, KernelHelper
@@ -428,7 +425,7 @@ class HessNCDFT(DerivTwiceNCDFT, HessSCF):
         return HessSCF._get_E_2_Skeleton(self, grids, xc, cx, xc_type)
 
 
-class Test_GradSCF:
+class Test_HessSCF:
 
     def test_HF_hess(self):
 
@@ -441,14 +438,14 @@ class Test_GradSCF:
         config = {
             "scf_eng": H2O2.hf_eng
         }
-        helper = GradSCF(config)
+        grad_helper = GradSCF(config)
         config = {
-            "deriv_A": helper,
-            "deriv_B": helper,
+            "deriv_A": grad_helper,
+            "deriv_B": grad_helper,
         }
 
-        hessian_helper = HessSCF(config)
-        E_2 = hessian_helper.E_2
+        helper = HessSCF(config)
+        E_2 = helper.E_2
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-HF-freq.fchk"))
 
@@ -468,14 +465,14 @@ class Test_GradSCF:
         config = {
             "scf_eng": H2O2.gga_eng
         }
-        helper = GradSCF(config)
+        grad_helper = GradSCF(config)
         config = {
-            "deriv_A": helper,
-            "deriv_B": helper,
+            "deriv_A": grad_helper,
+            "deriv_B": grad_helper,
         }
 
-        hessian_helper = HessSCF(config)
-        E_2 = hessian_helper.E_2
+        helper = HessSCF(config)
+        E_2 = helper.E_2
 
         formchk = FormchkInterface(resource_filename("pyxdhalpha", "Validation/gaussian/H2O2-B3LYP-freq.fchk"))
 
@@ -513,27 +510,3 @@ class Test_GradSCF:
             E_2, ref_hess,
             atol=1e-6, rtol=1e-4
         ))
-
-
-if __name__ == '__main__':
-
-    from pkg_resources import resource_filename
-    from pyxdhalpha.Utilities.test_molecules import Mol_H2O2
-    from pyxdhalpha.Utilities import FormchkInterface
-    from pyxdhalpha.DerivOnce import GradNCDFT
-
-    H2O2 = Mol_H2O2()
-    config = {
-        "scf_eng": H2O2.hf_eng,
-        "nc_eng": H2O2.gga_eng,
-        "rotation": True,
-    }
-    scf_helper = GradNCDFT(config)
-
-    config = {
-        "deriv_A": scf_helper,
-        "deriv_B": scf_helper,
-    }
-    helper = HessNCDFT(config)
-
-

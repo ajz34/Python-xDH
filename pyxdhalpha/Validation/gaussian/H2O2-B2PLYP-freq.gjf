@@ -1,5 +1,5 @@
 %chk=H2O2-B2PLYP-freq
-#p RB2PLYP(Full)/6-31G nosymm SCF(VeryTight) Freq
+#p RB2PLYP(Full)/6-31G nosymm SCF(VeryTight) Freq Int(Grid=99590)
 
 H2O2 B2PLYP Freq
 
