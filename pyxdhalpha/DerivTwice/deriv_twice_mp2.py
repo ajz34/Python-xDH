@@ -2,9 +2,6 @@ import numpy as np
 from abc import ABC
 from functools import partial
 import os
-import warnings
-
-from pyscf.scf import cphf
 
 from pyxdhalpha.DerivTwice import DerivTwiceSCF, DerivTwiceNCDFT
 from pyxdhalpha.DerivOnce import DerivOnceMP2, DerivOnceXDH
