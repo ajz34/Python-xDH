@@ -70,7 +70,7 @@ class DerivTwiceMP2(DerivTwiceSCF, ABC):
         so, sv = self.so, self.sv
         natm, nmo = self.natm, self.nmo
 
-        pdB_D_r_oovv = np.zeros((natm * 3, nmo, nmo))
+        pdB_D_r_oovv = np.zeros((B.pdA_t_iajb.shape[0], nmo, nmo))
         pdB_D_r_oovv[:, so, so] -= 2 * np.einsum("iakb, Ajakb -> Aij", B.T_iajb, B.pdA_t_iajb)
         pdB_D_r_oovv[:, sv, sv] += 2 * np.einsum("iajc, Aibjc -> Aab", B.T_iajb, B.pdA_t_iajb)
         pdB_D_r_oovv[:, so, so] -= 2 * np.einsum("Aiakb, jakb -> Aij", B.pdA_T_iajb, B.t_iajb)
