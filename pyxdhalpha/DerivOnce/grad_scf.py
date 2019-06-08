@@ -3,7 +3,7 @@ from functools import partial
 import os
 
 from pyscf import grad
-from pyscf.scf import cphf, _vhf
+from pyscf.scf import _vhf
 
 from pyxdhalpha.DerivOnce.deriv_once_scf import DerivOnceSCF, DerivOnceNCDFT
 from pyxdhalpha.Utilities import GridIterator, KernelHelper, timing
@@ -193,7 +193,8 @@ class GradSCF(DerivOnceSCF):
         return fx
 
     def _get_H_1_ao(self):
-        return np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)]).reshape((-1, self.nao, self.nao))
+        return np.array([self.scf_grad.hcore_generator()(A) for A in range(self.natm)])\
+            .reshape((-1, self.nao, self.nao))
 
     def _get_F_1_ao(self):
         return np.array(self.scf_hess.make_h1(self.C, self.mo_occ)).reshape((-1, self.nao, self.nao))
@@ -339,11 +340,11 @@ class Test_GradSCF:
         }
         helper = GradNCDFT(config)
 
-        with open(resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_derivonce_hf_b3lyp.dat"), "rb") as f:
+        with open(resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_derivonce_hf_b3lyp.dat"),
+                  "rb") as f:
             ref_grad = pickle.load(f)["grad"].reshape(-1, 3)
 
         assert (np.allclose(
             helper.E_1, ref_grad,
             atol=1e-6, rtol=1e-4
         ))
-

@@ -204,7 +204,8 @@ class Test_DipoleSCF:
         }
         helper = DipoleNCDFT(config)
 
-        with open(resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_derivonce_hf_b3lyp.dat"), "rb") as f:
+        with open(resource_filename("pyxdhalpha", "Validation/numerical_deriv/ncdft_derivonce_hf_b3lyp.dat"),
+                  "rb") as f:
             ref_dipole = pickle.load(f)["dipole"]
 
         assert (np.allclose(
