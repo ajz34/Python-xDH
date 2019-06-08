@@ -74,3 +74,9 @@ class FormchkInterface:
         if file_path is None:
             file_path = self.file_path
         return self.tril_to_symm(self.key_to_value("Cartesian Force Constants", file_path))
+
+    def polarizability(self, file_path=None):
+        if file_path is None:
+            file_path = self.file_path
+        # two space after `Polarizability' is to avoid `Polarizability Derivative'
+        return self.tril_to_symm(self.key_to_value("Polarizability  ", file_path))

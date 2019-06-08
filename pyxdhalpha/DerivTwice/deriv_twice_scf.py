@@ -2,14 +2,8 @@ import numpy as np
 from abc import ABC, abstractmethod
 from functools import partial
 import os
-import warnings
-
-from pyscf import gto, dft, grad, hessian, lib
-import pyscf.dft.numint
-from pyscf.scf import cphf
 
 from pyxdhalpha.DerivOnce import DerivOnceSCF, DerivOnceNCDFT
-from pyxdhalpha.Utilities import timing, GridIterator, KernelHelper
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
 np.einsum = partial(np.einsum, optimize=["greedy", 1024 ** 3 * MAXMEM / 8])
@@ -97,7 +91,7 @@ class DerivTwiceSCF(ABC):
 
     @property
     def nao(self):
-        return self.mol.nao
+        return self.A.nao
 
     @property
     def nocc(self):
