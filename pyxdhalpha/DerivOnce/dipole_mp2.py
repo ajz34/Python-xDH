@@ -11,9 +11,6 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 
 class DipoleMP2(DerivOnceMP2, DipoleSCF):
 
-    def Ax1_Core(self, si, sj, sk, sl):
-        raise NotImplementedError("This is still under construction...")
-
     def _get_E_1(self):
         E_1 = np.einsum("pq, Apq -> A", self.D_r, self.B_1)
         E_1 += super(DipoleMP2, self)._get_E_1()
@@ -21,9 +18,6 @@ class DipoleMP2(DerivOnceMP2, DipoleSCF):
 
 
 class DipoleXDH(DerivOnceXDH, DipoleMP2, DipoleNCDFT):
-
-    def Ax1_Core(self, si, sj, sk, sl):
-        raise NotImplementedError("This is still under construction...")
 
     def _get_E_1(self):
         E_1 = np.einsum("pq, Apq -> A", self.D_r, self.B_1)

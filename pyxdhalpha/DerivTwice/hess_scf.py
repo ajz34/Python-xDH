@@ -49,7 +49,6 @@ class HessSCF(DerivTwiceSCF):
         nao = self.nao
 
         def reshape_only_first_dimension(mats_, d1=3, d2=3):
-            rmats = []
             if isinstance(mats_, np.ndarray):
                 mats = [mats_]
             else:

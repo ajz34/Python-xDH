@@ -3,6 +3,7 @@ from functools import partial
 import os
 
 from pyxdhalpha.DerivOnce.deriv_once_scf import DerivOnceSCF, DerivOnceNCDFT
+from pyxdhalpha.Utilities import GridIterator, KernelHelper
 
 
 MAXMEM = float(os.getenv("MAXMEM", 2))
@@ -12,8 +13,95 @@ np.set_printoptions(8, linewidth=1000, suppress=True)
 
 class DipoleSCF(DerivOnceSCF):
 
-    def Ax1_Core(self, si, sj, sk, sl):
-        raise NotImplementedError("This is still under construction...")
+    def Ax1_Core(self, si, sj, sk, sl, reshape=True):
+
+        C, Co = self.C, self.Co
+        natm, nao, nmo, nocc = self.natm, self.nao, self.nmo, self.nocc
+        so, sv = self.so, self.sv
+
+        dmU = C @ self.U_1[:, :, so] @ Co.T
+        dmU += dmU.swapaxes(-1, -2)
+        dmU.shape = (3, nao, nao)
+
+        sij_none = si is None and sj is None
+        skl_none = sk is None and sl is None
+
+        def fx(X_):
+
+            # Method is only used in DFT
+            if self.xc_type == "HF":
+                return 0
+
+            if X_ is 0:
+                return 0
+            X = X_.copy()  # type: np.ndarray
+            shape1 = list(X.shape)
+            X.shape = (-1, shape1[-2], shape1[-1])
+            if skl_none:
+                dm = X
+                if dm.shape[-2] != nao or dm.shape[-1] != nao:
+                    raise ValueError("if `sk`, `sl` is None, we assume that mo1 passed in is an AO-based matrix!")
+            else:
+                dm = C[:, sk] @ X @ C[:, sl].T
+            dm += dm.transpose((0, 2, 1))
+
+            ax_ao = np.zeros((3, dm.shape[0], nao, nao))
+
+            # Actual calculation
+            for B in range(dm.shape[0]):
+                dmX = dm[B]
+
+                grdit = GridIterator(self.mol, self.grids, self.D, deriv=3, memory=self.grdit_memory)
+                for grdh in grdit:
+                    kerh = KernelHelper(grdh, self.xc, deriv=3)
+
+                    # Form dmX density grid
+                    rho_X_0 = grdh.get_rho_0(dmX)
+                    rho_X_1 = grdh.get_rho_1(dmX)
+
+                    # U contribution to \partial_{A_t} A
+                    rho_U_0 = np.einsum("Auv, gu, gv -> Ag", dmU, grdh.ao_0, grdh.ao_0)
+                    rho_U_1 = 2 * np.einsum("Auv, rgu, gv -> Arg", dmU, grdh.ao_1, grdh.ao_0)
+                    gamma_U_0 = 2 * np.einsum("rg, Arg -> Ag", grdh.rho_1, rho_U_1)
+                    pdU_frr = kerh.frrr * rho_U_0 + kerh.frrg * gamma_U_0
+                    pdU_frg = kerh.frrg * rho_U_0 + kerh.frgg * gamma_U_0
+                    pdU_fgg = kerh.frgg * rho_U_0 + kerh.fggg * gamma_U_0
+                    pdU_fg = kerh.frg * rho_U_0 + kerh.fgg * gamma_U_0
+                    pdU_rho_1 = rho_U_1
+                    pdU_tmp_M_0 = (
+                            + np.einsum("Ag, g -> Ag", pdU_frr, rho_X_0)
+                            + 2 * np.einsum("Ag, wg, wg -> Ag", pdU_frg, grdh.rho_1, rho_X_1)
+                            + 2 * np.einsum("g, Awg, wg -> Ag", kerh.frg, pdU_rho_1, rho_X_1)
+                    )
+                    pdU_tmp_M_1 = (
+                            + 4 * np.einsum("Ag, g, rg -> Arg", pdU_frg, rho_X_0, grdh.rho_1)
+                            + 4 * np.einsum("g, g, Arg -> Arg", kerh.frg, rho_X_0, pdU_rho_1)
+                            + 8 * np.einsum("Ag, wg, wg, rg -> Arg", pdU_fgg, grdh.rho_1, rho_X_1, grdh.rho_1)
+                            + 8 * np.einsum("g, Awg, wg, rg -> Arg", kerh.fgg, pdU_rho_1, rho_X_1, grdh.rho_1)
+                            + 8 * np.einsum("g, wg, wg, Arg -> Arg", kerh.fgg, grdh.rho_1, rho_X_1, pdU_rho_1)
+                            + 4 * np.einsum("Ag, rg -> Arg", pdU_fg, rho_X_1)
+                    )
+
+                    contrib3 = np.zeros((3, nao, nao))
+                    contrib3 += np.einsum("Ag, gu, gv -> Auv", pdU_tmp_M_0, grdh.ao_0, grdh.ao_0)
+                    contrib3 += np.einsum("Arg, rgu, gv -> Auv", pdU_tmp_M_1, grdh.ao_1, grdh.ao_0)
+                    contrib3 += contrib3.swapaxes(-1, -2)
+
+                    ax_ao[:, B] += contrib3
+
+            if not sij_none:
+                ax_ao = np.einsum("ABuv, ui, vj -> ABij", ax_ao, C[:, si], C[:, sj])
+            if reshape:
+                shape1.pop()
+                shape1.pop()
+                shape1.insert(0, ax_ao.shape[0])
+                shape1.append(ax_ao.shape[-2])
+                shape1.append(ax_ao.shape[-1])
+                ax_ao.shape = shape1
+
+            return ax_ao
+
+        return fx
 
     def _get_H_1_ao(self):
         return - self.mol.intor("int1e_r")
@@ -39,9 +127,6 @@ class DipoleSCF(DerivOnceSCF):
 
 
 class DipoleNCDFT(DerivOnceNCDFT, DipoleSCF):
-
-    def Ax1_Core(self, si, sj, sk, sl):
-        raise NotImplementedError
 
     @property
     def DerivOnceMethod(self):

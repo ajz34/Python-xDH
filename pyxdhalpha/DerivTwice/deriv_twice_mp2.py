@@ -155,7 +155,7 @@ class DerivTwiceMP2(DerivTwiceSCF, ABC):
     # endregion
 
 
-class DerivTwiceXDH(DerivTwiceMP2, DerivTwiceNCDFT):
+class DerivTwiceXDH(DerivTwiceMP2, DerivTwiceNCDFT, ABC):
 
     def __init__(self, config):
         super(DerivTwiceXDH, self).__init__(config)
